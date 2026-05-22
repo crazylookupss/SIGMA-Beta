@@ -1,3 +1,5 @@
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -17,6 +19,34 @@ var jwtAuthority = builder.Configuration["Authentication:Jwt:Authority"];
 var jwtAudience = builder.Configuration["Authentication:Jwt:Audience"];
 var tenantId = builder.Configuration["Entra:TenantId"];
 
+var v1ConfigUrl = $"https://login.microsoftonline.com/{tenantId}/.well-known/openid-configuration";
+var v2ConfigUrl = $"https://login.microsoftonline.com/{tenantId}/v2.0/.well-known/openid-configuration";
+var commonConfigUrl = "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration";
+
+var v1ConfigManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+    v1ConfigUrl,
+    new OpenIdConnectConfigurationRetriever());
+
+var v2ConfigManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+    v2ConfigUrl,
+    new OpenIdConnectConfigurationRetriever());
+
+var commonConfigManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+    commonConfigUrl,
+    new OpenIdConnectConfigurationRetriever());
+
+// Retrieve and merge signing keys from Tenant (v1 & v2) and Microsoft Common keychains at startup
+var v1Config = await v1ConfigManager.GetConfigurationAsync();
+var v2Config = await v2ConfigManager.GetConfigurationAsync();
+var commonConfig = await commonConfigManager.GetConfigurationAsync();
+
+var allSigningKeys = v1Config.SigningKeys
+    .Concat(v2Config.SigningKeys)
+    .Concat(commonConfig.SigningKeys)
+    .GroupBy(k => k.KeyId)
+    .Select(g => g.First())
+    .ToList();
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -30,9 +60,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 $"https://sts.windows.net/{tenantId}/",
                 $"https://login.microsoftonline.com/{tenantId}",
                 $"https://login.microsoftonline.com/{tenantId}/v2.0",
+                $"https://login.microsoftonline.com/common/v2.0",
             ],
-            ValidAudiences = [jwtAudience, "https://graph.microsoft.com"],
-            SignatureValidator = (token, _) => new JsonWebToken(token),
+            ValidAudiences =
+            [
+                jwtAudience,
+                "https://graph.microsoft.com",
+                tenantId,
+                builder.Configuration["Entra:ClientId"],
+                $"api://{builder.Configuration["Entra:ClientId"]}"
+            ],
+            IssuerSigningKeys = allSigningKeys,
         };
     });
 
@@ -103,5 +141,6 @@ var entra = api.MapGroup("/entra").RequireAuthorization();
 entra.MapUserEndpoints();
 entra.MapGroupEndpoints();
 entra.MapServicePrincipalEndpoints();
+entra.MapApplicationEndpoints();
 
 app.Run();

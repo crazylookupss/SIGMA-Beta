@@ -7,18 +7,19 @@ internal static class TokenEndpoints
     public static RouteGroupBuilder MapTokenEndpoints(this RouteGroupBuilder group)
     {
         group.MapPost("/token", async (
-            TokenRequest request,
+            TokenRequest? request,
             HttpContext httpContext,
             IConfiguration config,
             IHttpClientFactory httpClientFactory) =>
         {
+            var req = request ?? new TokenRequest();
             var tenantId = config["Entra:TenantId"];
             var clientId = config["Entra:ClientId"];
             var clientSecret = config["Entra:ClientSecret"];
             var scopes = config.GetSection("Entra:Scopes").Get<string[]>() ?? ["https://graph.microsoft.com/.default"];
 
-            var useClientId = !string.IsNullOrWhiteSpace(request.ClientId) ? request.ClientId : clientId;
-            var useClientSecret = !string.IsNullOrWhiteSpace(request.ClientSecret) ? request.ClientSecret : clientSecret;
+            var useClientId = !string.IsNullOrWhiteSpace(req.ClientId) ? req.ClientId : clientId;
+            var useClientSecret = !string.IsNullOrWhiteSpace(req.ClientSecret) ? req.ClientSecret : clientSecret;
 
             if (string.IsNullOrWhiteSpace(useClientId) || string.IsNullOrWhiteSpace(useClientSecret))
             {
@@ -30,12 +31,13 @@ internal static class TokenEndpoints
             }
 
             var tokenEndpoint = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
+            var requestedScope = !string.IsNullOrWhiteSpace(req.Scope) ? req.Scope : $"api://{useClientId}/.default";
 
             var formData = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["client_id"] = useClientId,
                 ["client_secret"] = useClientSecret,
-                ["scope"] = !string.IsNullOrWhiteSpace(request.Scope) ? request.Scope : string.Join(" ", scopes),
+                ["scope"] = requestedScope,
                 ["grant_type"] = "client_credentials"
             });
 

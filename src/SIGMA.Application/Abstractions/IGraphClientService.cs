@@ -26,4 +26,11 @@ public interface IGraphClientService
 
     Task<Result<EntraServicePrincipal>> GetServicePrincipalByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default);
+
+    Task<Result<PagedResponse<EntraApplication>>> GetApplicationsAsync(
+        string? select, string? filter, int? top, int? skip, bool? count,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<EntraApplication>> GetApplicationByIdAsync(
+        string id, string? select, CancellationToken cancellationToken = default);
 }
