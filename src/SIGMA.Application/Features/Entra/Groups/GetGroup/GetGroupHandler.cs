@@ -29,6 +29,19 @@ internal sealed class GetGroupHandler(IGraphClientService graphClient)
             Visibility = group.Visibility,
             CreatedDateTime = group.CreatedDateTime,
             MemberCount = group.MemberCount,
+
+            // New enriched property mapping
+            MembershipType = group.MembershipType,
+            Source = group.Source,
+            Type = group.Type,
+            TotalDirectMembers = group.TotalDirectMembers,
+            DirectUsers = group.DirectUsers,
+            DirectGroups = group.DirectGroups,
+            DirectDevices = group.DirectDevices,
+            DirectOthers = group.DirectOthers,
+            GroupMembershipsCount = group.GroupMembershipsCount,
+            OwnersCount = group.OwnersCount,
+            TotalMembers = group.TotalMembers,
         };
 
         return Result.Success(response);

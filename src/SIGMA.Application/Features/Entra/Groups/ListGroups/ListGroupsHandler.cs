@@ -33,6 +33,9 @@ internal sealed class ListGroupsHandler(IGraphClientService graphClient)
                     Visibility = g.Visibility,
                     CreatedDateTime = g.CreatedDateTime,
                     MemberCount = g.MemberCount,
+                    MembershipType = g.MembershipType,
+                    Source = g.Source,
+                    Type = g.Type,
                 })
                 .ToList(),
             NextLink = result.Value.NextLink,
