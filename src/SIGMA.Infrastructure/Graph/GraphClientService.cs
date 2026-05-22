@@ -43,14 +43,14 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         CancellationToken cancellationToken = default)
     {
         return await GetPagedAsync<GraphUser, EntraUser>(
-            "/users", MapUser, select, filter, top, skip, count, cancellationToken);
+            "users", MapUser, select, filter, top, skip, count, cancellationToken);
     }
 
     public async Task<Result<EntraUser>> GetUserByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphUser, EntraUser>(
-            $"/users/{Uri.EscapeDataString(id)}", MapUser, select, cancellationToken);
+            $"users/{Uri.EscapeDataString(id)}", MapUser, select, cancellationToken);
     }
 
     public async Task<Result<PagedResponse<EntraGroup>>> GetGroupsAsync(
@@ -58,14 +58,14 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         CancellationToken cancellationToken = default)
     {
         return await GetPagedAsync<GraphGroup, EntraGroup>(
-            "/groups", MapGroup, select, filter, top, skip, count, cancellationToken);
+            "groups", MapGroup, select, filter, top, skip, count, cancellationToken);
     }
 
     public async Task<Result<EntraGroup>> GetGroupByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphGroup, EntraGroup>(
-            $"/groups/{Uri.EscapeDataString(id)}", MapGroup, select, cancellationToken);
+            $"groups/{Uri.EscapeDataString(id)}", MapGroup, select, cancellationToken);
     }
 
     public async Task<Result<PagedResponse<EntraServicePrincipal>>> GetServicePrincipalsAsync(
@@ -73,14 +73,14 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         CancellationToken cancellationToken = default)
     {
         return await GetPagedAsync<GraphServicePrincipalDto, EntraServicePrincipal>(
-            "/servicePrincipals", MapServicePrincipal, select, filter, top, skip, count, cancellationToken);
+            "servicePrincipals", MapServicePrincipal, select, filter, top, skip, count, cancellationToken);
     }
 
     public async Task<Result<EntraServicePrincipal>> GetServicePrincipalByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphServicePrincipalDto, EntraServicePrincipal>(
-            $"/servicePrincipals/{Uri.EscapeDataString(id)}", MapServicePrincipal, select, cancellationToken);
+            $"servicePrincipals/{Uri.EscapeDataString(id)}", MapServicePrincipal, select, cancellationToken);
     }
 
     private async Task<Result<PagedResponse<TTarget>>> GetPagedAsync<TSource, TTarget>(
