@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SIGMA.Api/SIGMA.Api.csproj" />
+    <Project Path="src/SIGMA.Application/SIGMA.Application.csproj" />
+    <Project Path="src/SIGMA.Domain/SIGMA.Domain.csproj" />
+    <Project Path="src/SIGMA.Infrastructure/SIGMA.Infrastructure.csproj" />
+  </Folder>
+</Solution>
