@@ -13,4 +13,9 @@ public sealed record ListGroupsResponse
     public string? Visibility { get; init; }
     public DateTimeOffset? CreatedDateTime { get; init; }
     public int? MemberCount { get; init; }
+
+    // Basic classifiers available in lists
+    public string? MembershipType { get; init; }
+    public string? Source { get; init; }
+    public string? Type { get; init; }
 }

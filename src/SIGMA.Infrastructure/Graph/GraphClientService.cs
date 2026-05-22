@@ -64,8 +64,65 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     public async Task<Result<EntraGroup>> GetGroupByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
-        return await GetSingleAsync<GraphGroup, EntraGroup>(
-            $"groups/{Uri.EscapeDataString(id)}", MapGroup, select, cancellationToken);
+        var escapedId = Uri.EscapeDataString(id);
+        var groupResult = await GetSingleAsync<GraphGroup, EntraGroup>(
+            $"groups/{escapedId}", MapGroup, select, cancellationToken);
+
+        if (groupResult.IsFailure)
+            return groupResult;
+
+        var group = groupResult.Value!;
+
+        // Fire concurrent relationship queries for enriched Entra Overview metrics
+        var membersTask = GetCollectionListAsync<MemberDto>($"groups/{escapedId}/members?$select=id", cancellationToken);
+        var ownersTask = GetCollectionListAsync<OwnerDto>($"groups/{escapedId}/owners?$select=id", cancellationToken);
+        var memberOfTask = GetCollectionListAsync<MemberOfDto>($"groups/{escapedId}/memberOf?$select=id", cancellationToken);
+        var transitiveTask = GetCollectionListAsync<TransitiveMemberDto>($"groups/{escapedId}/transitiveMembers?$select=id", cancellationToken);
+
+        try
+        {
+            await Task.WhenAll(membersTask, ownersTask, memberOfTask, transitiveTask);
+
+            var members = membersTask.Result;
+            var directUsers = members.Count(m => m.OdataType == "#microsoft.graph.user" || m.OdataType == "microsoft.graph.user");
+            var directGroups = members.Count(m => m.OdataType == "#microsoft.graph.group" || m.OdataType == "microsoft.graph.group");
+            var directDevices = members.Count(m => m.OdataType == "#microsoft.graph.device" || m.OdataType == "microsoft.graph.device");
+            var directOthers = members.Count - (directUsers + directGroups + directDevices);
+
+            return group with
+            {
+                TotalDirectMembers = members.Count,
+                DirectUsers = directUsers,
+                DirectGroups = directGroups,
+                DirectDevices = directDevices,
+                DirectOthers = directOthers,
+                GroupMembershipsCount = memberOfTask.Result.Count,
+                OwnersCount = ownersTask.Result.Count,
+                TotalMembers = transitiveTask.Result.Count
+            };
+        }
+        catch
+        {
+            // Fail gracefully to basic group properties if Graph relationship endpoints fail
+            return group;
+        }
+    }
+
+    private async Task<List<T>> GetCollectionListAsync<T>(string path, CancellationToken ct)
+    {
+        try
+        {
+            var response = await SendGetAsync(path, ct);
+            if (!response.IsSuccessStatusCode)
+                return [];
+
+            var wrapper = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<T>>(JsonOptions, ct);
+            return wrapper?.Value ?? [];
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     public async Task<Result<PagedResponse<EntraServicePrincipal>>> GetServicePrincipalsAsync(
@@ -274,19 +331,46 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         UserType = u.UserType,
     };
 
-    private static EntraGroup MapGroup(GraphGroup g) => new()
+    private static EntraGroup MapGroup(GraphGroup g)
     {
-        Id = g.Id ?? string.Empty,
-        DisplayName = g.DisplayName,
-        Description = g.Description,
-        Mail = g.Mail,
-        MailEnabled = g.MailEnabled,
-        SecurityEnabled = g.SecurityEnabled,
-        MailNickname = g.MailNickname,
-        GroupTypes = g.GroupTypes ?? [],
-        Visibility = g.Visibility,
-        CreatedDateTime = g.CreatedDateTime,
-    };
+        var isDynamic = g.GroupTypes?.Contains("DynamicMembership") == true;
+        var membershipType = isDynamic ? "Dynamic" : "Assigned";
+
+        var source = g.OnPremisesSyncEnabled == true ? "On-Premises" : "Cloud";
+
+        string type = "Security";
+        if (g.GroupTypes?.Contains("Unified") == true)
+        {
+            type = "Microsoft 365";
+        }
+        else if (g.MailEnabled == true && g.SecurityEnabled == false)
+        {
+            type = "Distribution list";
+        }
+        else if (g.MailEnabled == true && g.SecurityEnabled == true)
+        {
+            type = "Mail-enabled security";
+        }
+
+        return new EntraGroup
+        {
+            Id = g.Id ?? string.Empty,
+            DisplayName = g.DisplayName,
+            Description = g.Description,
+            Mail = g.Mail,
+            MailEnabled = g.MailEnabled,
+            SecurityEnabled = g.SecurityEnabled,
+            MailNickname = g.MailNickname,
+            GroupTypes = g.GroupTypes ?? [],
+            Visibility = g.Visibility,
+            CreatedDateTime = g.CreatedDateTime,
+            
+            // New classifiers mapped from Entra ID standard fields
+            MembershipType = membershipType,
+            Source = source,
+            Type = type
+        };
+    }
 
     private static EntraServicePrincipal MapServicePrincipal(GraphServicePrincipalDto sp) => new()
     {
@@ -322,7 +406,48 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             app.Certification.IsCertifiedByMicrosoft,
             app.Certification.LastCertificationDateTime,
             app.Certification.CertificationExpirationDateTime,
-            app.Certification.CertificationDetailsUrl)
+            app.Certification.CertificationDetailsUrl),
+
+        // New mappings
+        DeletedDateTime = app.DeletedDateTime,
+        IsFallbackPublicClient = app.IsFallbackPublicClient,
+        ApplicationTemplateId = app.ApplicationTemplateId,
+        CreatedByAppId = app.CreatedByAppId,
+        DisabledByMicrosoftStatus = app.DisabledByMicrosoftStatus,
+        IsDeviceOnlyAuthSupported = app.IsDeviceOnlyAuthSupported,
+        GroupMembershipClaims = app.GroupMembershipClaims,
+        OptionalClaims = app.OptionalClaims,
+        AddIns = app.AddIns ?? [],
+        SamlMetadataUrl = app.SamlMetadataUrl,
+        TokenEncryptionKeyId = app.TokenEncryptionKeyId,
+        Api = app.Api is null ? null : new ApiApplicationDto(
+            app.Api.RequestedAccessTokenVersion,
+            app.Api.AcceptMappedClaims,
+            app.Api.KnownClientApplications ?? [],
+            app.Api.Oauth2PermissionScopes ?? [],
+            app.Api.PreAuthorizedApplications ?? []),
+        AppRoles = app.AppRoles ?? [],
+        PublicClient = app.PublicClient is null ? null : new PublicClientApplicationDto(
+            app.PublicClient.RedirectUris ?? []),
+        Info = app.Info is null ? null : new InformationalUrlDto(
+            app.Info.TermsOfServiceUrl,
+            app.Info.SupportUrl,
+            app.Info.PrivacyStatementUrl,
+            app.Info.MarketingUrl,
+            app.Info.LogoUrl),
+        KeyCredentials = app.KeyCredentials ?? [],
+        ParentalControlSettings = app.ParentalControlSettings is null ? null : new ParentalControlSettingsDto(
+            app.ParentalControlSettings.CountriesBlockedForMinors ?? [],
+            app.ParentalControlSettings.LegalAgeGroupRule),
+        PasswordCredentials = app.PasswordCredentials ?? [],
+        RequiredResourceAccess = app.RequiredResourceAccess ?? [],
+        Web = app.Web is null ? null : new WebApplicationDto(
+            app.Web.RedirectUris ?? [],
+            app.Web.HomePageUrl,
+            app.Web.LogoutUrl,
+            app.Web.ImplicitGrantSettings is null ? null : new ImplicitGrantSettingsDto(
+                app.Web.ImplicitGrantSettings.EnableIdTokenIssuance,
+                app.Web.ImplicitGrantSettings.EnableAccessTokenIssuance))
     };
 
     public void Dispose() => _httpClient.Dispose();
@@ -356,7 +481,18 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public List<string>? GroupTypes { get; init; }
         public string? Visibility { get; init; }
         public DateTimeOffset? CreatedDateTime { get; init; }
+        public bool? OnPremisesSyncEnabled { get; init; }
     }
+
+    private sealed record MemberDto(
+        [property: JsonPropertyName("@odata.type")] string? OdataType,
+        string? Id);
+
+    private sealed record MemberOfDto(string? Id);
+
+    private sealed record OwnerDto(string? Id);
+
+    private sealed record TransitiveMemberDto(string? Id);
 
     private sealed record GraphServicePrincipalDto
     {
@@ -385,6 +521,28 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public List<string>? Tags { get; init; }
         public GraphVerifiedPublisherDto? VerifiedPublisher { get; init; }
         public GraphCertificationDto? Certification { get; init; }
+
+        // New properties
+        public DateTimeOffset? DeletedDateTime { get; init; }
+        public bool? IsFallbackPublicClient { get; init; }
+        public string? ApplicationTemplateId { get; init; }
+        public string? CreatedByAppId { get; init; }
+        public string? DisabledByMicrosoftStatus { get; init; }
+        public bool? IsDeviceOnlyAuthSupported { get; init; }
+        public string? GroupMembershipClaims { get; init; }
+        public object? OptionalClaims { get; init; }
+        public List<object>? AddIns { get; init; }
+        public string? SamlMetadataUrl { get; init; }
+        public string? TokenEncryptionKeyId { get; init; }
+        public GraphApiApplicationDto? Api { get; init; }
+        public List<object>? AppRoles { get; init; }
+        public GraphPublicClientApplicationDto? PublicClient { get; init; }
+        public GraphInformationalUrlDto? Info { get; init; }
+        public List<object>? KeyCredentials { get; init; }
+        public GraphParentalControlSettingsDto? ParentalControlSettings { get; init; }
+        public List<object>? PasswordCredentials { get; init; }
+        public List<object>? RequiredResourceAccess { get; init; }
+        public GraphWebApplicationDto? Web { get; init; }
     }
 
     private sealed record GraphVerifiedPublisherDto
@@ -401,6 +559,49 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public DateTimeOffset? LastCertificationDateTime { get; init; }
         public DateTimeOffset? CertificationExpirationDateTime { get; init; }
         public string? CertificationDetailsUrl { get; init; }
+    }
+
+    private sealed record GraphApiApplicationDto
+    {
+        public int? RequestedAccessTokenVersion { get; init; }
+        public bool? AcceptMappedClaims { get; init; }
+        public List<object>? KnownClientApplications { get; init; }
+        public List<object>? Oauth2PermissionScopes { get; init; }
+        public List<object>? PreAuthorizedApplications { get; init; }
+    }
+
+    private sealed record GraphPublicClientApplicationDto
+    {
+        public List<string>? RedirectUris { get; init; }
+    }
+
+    private sealed record GraphInformationalUrlDto
+    {
+        public string? TermsOfServiceUrl { get; init; }
+        public string? SupportUrl { get; init; }
+        public string? PrivacyStatementUrl { get; init; }
+        public string? MarketingUrl { get; init; }
+        public string? LogoUrl { get; init; }
+    }
+
+    private sealed record GraphParentalControlSettingsDto
+    {
+        public List<string>? CountriesBlockedForMinors { get; init; }
+        public string? LegalAgeGroupRule { get; init; }
+    }
+
+    private sealed record GraphWebApplicationDto
+    {
+        public List<string>? RedirectUris { get; init; }
+        public string? HomePageUrl { get; init; }
+        public string? LogoutUrl { get; init; }
+        public GraphImplicitGrantSettingsDto? ImplicitGrantSettings { get; init; }
+    }
+
+    private sealed record GraphImplicitGrantSettingsDto
+    {
+        public bool? EnableIdTokenIssuance { get; init; }
+        public bool? EnableAccessTokenIssuance { get; init; }
     }
 
     private sealed record GraphCollectionWrapper<T>

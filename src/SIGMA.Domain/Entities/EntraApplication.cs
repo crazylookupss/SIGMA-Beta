@@ -12,6 +12,28 @@ public sealed record EntraApplication
     public List<string> Tags { get; init; } = [];
     public VerifiedPublisherDto? VerifiedPublisher { get; init; }
     public CertificationDto? Certification { get; init; }
+
+    // New properties from standard Microsoft Graph Application entity
+    public DateTimeOffset? DeletedDateTime { get; init; }
+    public bool? IsFallbackPublicClient { get; init; }
+    public string? ApplicationTemplateId { get; init; }
+    public string? CreatedByAppId { get; init; }
+    public string? DisabledByMicrosoftStatus { get; init; }
+    public bool? IsDeviceOnlyAuthSupported { get; init; }
+    public string? GroupMembershipClaims { get; init; }
+    public object? OptionalClaims { get; init; }
+    public List<object> AddIns { get; init; } = [];
+    public string? SamlMetadataUrl { get; init; }
+    public string? TokenEncryptionKeyId { get; init; }
+    public ApiApplicationDto? Api { get; init; }
+    public List<object> AppRoles { get; init; } = [];
+    public PublicClientApplicationDto? PublicClient { get; init; }
+    public InformationalUrlDto? Info { get; init; }
+    public List<object> KeyCredentials { get; init; } = [];
+    public ParentalControlSettingsDto? ParentalControlSettings { get; init; }
+    public List<object> PasswordCredentials { get; init; } = [];
+    public List<object> RequiredResourceAccess { get; init; } = [];
+    public WebApplicationDto? Web { get; init; }
 }
 
 public sealed record VerifiedPublisherDto(
@@ -25,3 +47,34 @@ public sealed record CertificationDto(
     DateTimeOffset? LastCertificationDateTime,
     DateTimeOffset? CertificationExpirationDateTime,
     string? CertificationDetailsUrl);
+
+public sealed record ApiApplicationDto(
+    int? RequestedAccessTokenVersion,
+    bool? AcceptMappedClaims,
+    List<object> KnownClientApplications,
+    List<object> Oauth2PermissionScopes,
+    List<object> PreAuthorizedApplications);
+
+public sealed record PublicClientApplicationDto(
+    List<string> RedirectUris);
+
+public sealed record InformationalUrlDto(
+    string? TermsOfServiceUrl,
+    string? SupportUrl,
+    string? PrivacyStatementUrl,
+    string? MarketingUrl,
+    string? LogoUrl);
+
+public sealed record ParentalControlSettingsDto(
+    List<string> CountriesBlockedForMinors,
+    string? LegalAgeGroupRule);
+
+public sealed record WebApplicationDto(
+    List<string> RedirectUris,
+    string? HomePageUrl,
+    string? LogoutUrl,
+    ImplicitGrantSettingsDto? ImplicitGrantSettings);
+
+public sealed record ImplicitGrantSettingsDto(
+    bool? EnableIdTokenIssuance,
+    bool? EnableAccessTokenIssuance);
