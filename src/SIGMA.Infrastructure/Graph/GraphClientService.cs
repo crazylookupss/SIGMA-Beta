@@ -43,14 +43,14 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         CancellationToken cancellationToken = default)
     {
         return await GetPagedAsync<GraphUser, EntraUser>(
-            "/users", MapUser, select, filter, top, skip, count, cancellationToken);
+            "users", MapUser, select, filter, top, skip, count, cancellationToken);
     }
 
     public async Task<Result<EntraUser>> GetUserByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphUser, EntraUser>(
-            $"/users/{Uri.EscapeDataString(id)}", MapUser, select, cancellationToken);
+            $"users/{Uri.EscapeDataString(id)}", MapUser, select, cancellationToken);
     }
 
     public async Task<Result<PagedResponse<EntraGroup>>> GetGroupsAsync(
@@ -58,14 +58,14 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         CancellationToken cancellationToken = default)
     {
         return await GetPagedAsync<GraphGroup, EntraGroup>(
-            "/groups", MapGroup, select, filter, top, skip, count, cancellationToken);
+            "groups", MapGroup, select, filter, top, skip, count, cancellationToken);
     }
 
     public async Task<Result<EntraGroup>> GetGroupByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphGroup, EntraGroup>(
-            $"/groups/{Uri.EscapeDataString(id)}", MapGroup, select, cancellationToken);
+            $"groups/{Uri.EscapeDataString(id)}", MapGroup, select, cancellationToken);
     }
 
     public async Task<Result<PagedResponse<EntraServicePrincipal>>> GetServicePrincipalsAsync(
@@ -73,14 +73,29 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         CancellationToken cancellationToken = default)
     {
         return await GetPagedAsync<GraphServicePrincipalDto, EntraServicePrincipal>(
-            "/servicePrincipals", MapServicePrincipal, select, filter, top, skip, count, cancellationToken);
+            "servicePrincipals", MapServicePrincipal, select, filter, top, skip, count, cancellationToken);
     }
 
     public async Task<Result<EntraServicePrincipal>> GetServicePrincipalByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphServicePrincipalDto, EntraServicePrincipal>(
-            $"/servicePrincipals/{Uri.EscapeDataString(id)}", MapServicePrincipal, select, cancellationToken);
+            $"servicePrincipals/{Uri.EscapeDataString(id)}", MapServicePrincipal, select, cancellationToken);
+    }
+
+    public async Task<Result<PagedResponse<EntraApplication>>> GetApplicationsAsync(
+        string? select, string? filter, int? top, int? skip, bool? count,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetPagedAsync<GraphApplicationDto, EntraApplication>(
+            "applications", MapApplication, select, filter, top, skip, count, cancellationToken);
+    }
+
+    public async Task<Result<EntraApplication>> GetApplicationByIdAsync(
+        string id, string? select, CancellationToken cancellationToken = default)
+    {
+        return await GetSingleAsync<GraphApplicationDto, EntraApplication>(
+            $"applications/{Uri.EscapeDataString(id)}", MapApplication, select, cancellationToken);
     }
 
     private async Task<Result<PagedResponse<TTarget>>> GetPagedAsync<TSource, TTarget>(
@@ -288,6 +303,28 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         CreatedDateTime = sp.CreatedDateTime,
     };
 
+    private static EntraApplication MapApplication(GraphApplicationDto app) => new()
+    {
+        Id = app.Id ?? string.Empty,
+        AppId = app.AppId,
+        DisplayName = app.DisplayName,
+        CreatedDateTime = app.CreatedDateTime,
+        SignInAudience = app.SignInAudience,
+        PublisherDomain = app.PublisherDomain,
+        IdentifierUris = app.IdentifierUris ?? [],
+        Tags = app.Tags ?? [],
+        VerifiedPublisher = app.VerifiedPublisher is null ? null : new VerifiedPublisherDto(
+            app.VerifiedPublisher.DisplayName,
+            app.VerifiedPublisher.VerifiedPublisherId,
+            app.VerifiedPublisher.AddedDateTime),
+        Certification = app.Certification is null ? null : new CertificationDto(
+            app.Certification.IsPublisherAttested,
+            app.Certification.IsCertifiedByMicrosoft,
+            app.Certification.LastCertificationDateTime,
+            app.Certification.CertificationExpirationDateTime,
+            app.Certification.CertificationDetailsUrl)
+    };
+
     public void Dispose() => _httpClient.Dispose();
 
     private sealed record GraphUser
@@ -334,6 +371,36 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public List<string>? Tags { get; init; }
         public string? AppOwnerOrganizationId { get; init; }
         public DateTimeOffset? CreatedDateTime { get; init; }
+    }
+
+    private sealed record GraphApplicationDto
+    {
+        public string? Id { get; init; }
+        public string? AppId { get; init; }
+        public string? DisplayName { get; init; }
+        public DateTimeOffset? CreatedDateTime { get; init; }
+        public string? SignInAudience { get; init; }
+        public string? PublisherDomain { get; init; }
+        public List<string>? IdentifierUris { get; init; }
+        public List<string>? Tags { get; init; }
+        public GraphVerifiedPublisherDto? VerifiedPublisher { get; init; }
+        public GraphCertificationDto? Certification { get; init; }
+    }
+
+    private sealed record GraphVerifiedPublisherDto
+    {
+        public string? DisplayName { get; init; }
+        public string? VerifiedPublisherId { get; init; }
+        public DateTimeOffset? AddedDateTime { get; init; }
+    }
+
+    private sealed record GraphCertificationDto
+    {
+        public bool? IsPublisherAttested { get; init; }
+        public bool? IsCertifiedByMicrosoft { get; init; }
+        public DateTimeOffset? LastCertificationDateTime { get; init; }
+        public DateTimeOffset? CertificationExpirationDateTime { get; init; }
+        public string? CertificationDetailsUrl { get; init; }
     }
 
     private sealed record GraphCollectionWrapper<T>
