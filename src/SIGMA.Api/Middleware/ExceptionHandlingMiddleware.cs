@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.AspNetCore.Hosting;
 using SIGMA.Domain.Common;
 
 namespace SIGMA.Api.Middleware;
@@ -13,20 +14,25 @@ internal sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An unhandled exception occurred: {Message}", ex.Message);
+            logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
             await HandleExceptionAsync(context, ex);
         }
     }
 
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        var (statusCode, error) = exception switch
-        {
-            _ => (
-                HttpStatusCode.InternalServerError,
-                Error.Failure("InternalServerError", "An unexpected error occurred. Please try again later.")
-            ),
-        };
+        var isDevelopment = context.RequestServices
+            .GetRequiredService<IWebHostEnvironment>()
+            .IsDevelopment();
+
+        var detail = isDevelopment
+            ? $"{exception.GetType().Name}: {exception.Message}"
+            : "An unexpected error occurred. Please try again later.";
+
+        var (statusCode, error) = (
+            HttpStatusCode.InternalServerError,
+            Error.Failure("InternalServerError", detail)
+        );
 
         context.Response.ContentType = "application/problem+json";
         context.Response.StatusCode = (int)statusCode;
