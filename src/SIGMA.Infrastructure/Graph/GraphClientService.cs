@@ -13,7 +13,7 @@ namespace SIGMA.Infrastructure.Graph;
 
 internal sealed class GraphClientService : IGraphClientService, IDisposable
 {
-    private const string GraphBaseUrl = "https://graph.microsoft.com/v1.0";
+    private const string GraphBaseUrl = "https://graph.microsoft.com/v1.0/";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -50,7 +50,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphUser, EntraUser>(
-            $"/users/{id}", MapUser, select, cancellationToken);
+            $"/users/{Uri.EscapeDataString(id)}", MapUser, select, cancellationToken);
     }
 
     public async Task<Result<PagedResponse<EntraGroup>>> GetGroupsAsync(
@@ -65,7 +65,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphGroup, EntraGroup>(
-            $"/groups/{id}", MapGroup, select, cancellationToken);
+            $"/groups/{Uri.EscapeDataString(id)}", MapGroup, select, cancellationToken);
     }
 
     public async Task<Result<PagedResponse<EntraServicePrincipal>>> GetServicePrincipalsAsync(
@@ -80,7 +80,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string id, string? select, CancellationToken cancellationToken = default)
     {
         return await GetSingleAsync<GraphServicePrincipalDto, EntraServicePrincipal>(
-            $"/servicePrincipals/{id}", MapServicePrincipal, select, cancellationToken);
+            $"/servicePrincipals/{Uri.EscapeDataString(id)}", MapServicePrincipal, select, cancellationToken);
     }
 
     private async Task<Result<PagedResponse<TTarget>>> GetPagedAsync<TSource, TTarget>(
@@ -116,6 +116,22 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         {
             return Error.ExternalService("GraphTimeout", "Request to Microsoft Graph timed out.");
         }
+        catch (CredentialUnavailableException ex)
+        {
+            return Error.Unauthorized("GraphCredentialUnavailable", $"Credential unavailable: {ex.Message}");
+        }
+        catch (AuthenticationFailedException ex)
+        {
+            return Error.Unauthorized("GraphAuthFailed", $"Token acquisition failed: {ex.Message}");
+        }
+        catch (JsonException ex)
+        {
+            return Error.ExternalService("GraphInvalidResponse", $"Invalid JSON from Graph API: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return Error.ExternalService("GraphUnexpected", $"Unexpected error: {ex.Message}");
+        }
     }
 
     private async Task<Result<TTarget>> GetSingleAsync<TSource, TTarget>(
@@ -147,6 +163,22 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         catch (TaskCanceledException)
         {
             return Error.ExternalService("GraphTimeout", "Request to Microsoft Graph timed out.");
+        }
+        catch (CredentialUnavailableException ex)
+        {
+            return Error.Unauthorized("GraphCredentialUnavailable", $"Credential unavailable: {ex.Message}");
+        }
+        catch (AuthenticationFailedException ex)
+        {
+            return Error.Unauthorized("GraphAuthFailed", $"Token acquisition failed: {ex.Message}");
+        }
+        catch (JsonException ex)
+        {
+            return Error.ExternalService("GraphInvalidResponse", $"Invalid JSON from Graph API: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return Error.ExternalService("GraphUnexpected", $"Unexpected error: {ex.Message}");
         }
     }
 
