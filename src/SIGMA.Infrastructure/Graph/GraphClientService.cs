@@ -14,6 +14,7 @@ namespace SIGMA.Infrastructure.Graph;
 internal sealed class GraphClientService : IGraphClientService, IDisposable
 {
     private const string GraphBaseUrl = "https://graph.microsoft.com/v1.0/";
+    private const string DefaultUserSelect = "id,displayName,givenName,surname,userPrincipalName,identities,userType,creationType,createdDateTime,assignedLicenses,preferredLanguage,signInSessionsValidFromDateTime,lastPasswordChangeDateTime,externalUserState,externalUserStateChangeDateTime,passwordPolicies,passwordProfile,authorizationInfo,jobTitle,companyName,department,employeeId,employeeType,employeeHireDate,employeeOrgData,officeLocation,streetAddress,city,state,postalCode,country,businessPhones,mobilePhone,mail,otherMails,proxyAddresses,faxNumber,imAddresses,mailNickname,ageGroup,consentProvidedForMinor,legalAgeGroupClassification,accountEnabled,usageLocation,preferredDataLocation,onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesDistinguishedName,onPremisesExtensionAttributes,onPremisesImmutableId,onPremisesProvisioningErrors,onPremisesSamAccountName,onPremisesSecurityIdentifier,onPremisesUserPrincipalName,onPremisesDomainName";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -49,8 +50,38 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     public async Task<Result<EntraUser>> GetUserByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
-        return await GetSingleAsync<GraphUser, EntraUser>(
-            $"users/{Uri.EscapeDataString(id)}", MapUser, select, cancellationToken);
+        var escapedId = Uri.EscapeDataString(id);
+        var selectFields = string.IsNullOrWhiteSpace(select) ? DefaultUserSelect : select;
+
+        var userResult = await GetSingleAsync<GraphUser, EntraUser>(
+            $"users/{escapedId}", MapUser, selectFields, cancellationToken);
+
+        if (userResult.IsFailure)
+            return userResult;
+
+        var user = userResult.Value!;
+
+        // Fetch manager and sponsors in parallel
+        var managerTask = GetSingleNavigationAsync<GraphManagerDto>($"users/{escapedId}/manager?$select=id,displayName,userPrincipalName", cancellationToken);
+        var sponsorsTask = GetCollectionListAsync<GraphSponsorDto>($"users/{escapedId}/sponsors?$select=id,displayName,userPrincipalName", cancellationToken);
+
+        try
+        {
+            await Task.WhenAll(managerTask, sponsorsTask);
+
+            var manager = managerTask.Result;
+            var sponsors = sponsorsTask.Result;
+
+            return user with
+            {
+                Manager = manager is null ? null : new UserManagerDto(manager.Id, manager.DisplayName, manager.UserPrincipalName),
+                Sponsors = sponsors.Select(s => new UserSponsorDto(s.Id, s.DisplayName, s.UserPrincipalName)).ToList()
+            };
+        }
+        catch
+        {
+            return user;
+        }
     }
 
     public async Task<Result<PagedResponse<EntraGroup>>> GetGroupsAsync(
@@ -122,6 +153,22 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         catch
         {
             return [];
+        }
+    }
+
+    private async Task<T?> GetSingleNavigationAsync<T>(string path, CancellationToken ct) where T : class
+    {
+        try
+        {
+            var response = await SendGetAsync(path, ct);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            return await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -318,17 +365,70 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     {
         Id = u.Id ?? string.Empty,
         DisplayName = u.DisplayName,
-        UserPrincipalName = u.UserPrincipalName,
         GivenName = u.GivenName,
         Surname = u.Surname,
-        JobTitle = u.JobTitle,
-        Mail = u.Mail,
-        MobilePhone = u.MobilePhone,
-        OfficeLocation = u.OfficeLocation,
-        PreferredLanguage = u.PreferredLanguage,
-        BusinessPhone = u.BusinessPhones?.FirstOrDefault(),
-        AccountEnabled = u.AccountEnabled,
+        UserPrincipalName = u.UserPrincipalName,
+        Identities = u.Identities ?? [],
         UserType = u.UserType,
+        CreationType = u.CreationType,
+        CreatedDateTime = u.CreatedDateTime,
+        AssignedLicenses = u.AssignedLicenses ?? [],
+        PreferredLanguage = u.PreferredLanguage,
+        SignInSessionsValidFromDateTime = u.SignInSessionsValidFromDateTime,
+        LastPasswordChangeDateTime = u.LastPasswordChangeDateTime,
+        ExternalUserState = u.ExternalUserState,
+        ExternalUserStateChangeDateTime = u.ExternalUserStateChangeDateTime,
+        PasswordPolicies = u.PasswordPolicies,
+        PasswordProfile = u.PasswordProfile,
+        AuthorizationInfo = u.AuthorizationInfo,
+
+        // Job Information
+        JobTitle = u.JobTitle,
+        CompanyName = u.CompanyName,
+        Department = u.Department,
+        EmployeeId = u.EmployeeId,
+        EmployeeType = u.EmployeeType,
+        EmployeeHireDate = u.EmployeeHireDate,
+        EmployeeOrgData = u.EmployeeOrgData,
+        OfficeLocation = u.OfficeLocation,
+
+        // Contact Information
+        StreetAddress = u.StreetAddress,
+        City = u.City,
+        State = u.State,
+        PostalCode = u.PostalCode,
+        Country = u.Country,
+        BusinessPhone = u.BusinessPhone ?? u.BusinessPhones?.FirstOrDefault(),
+        BusinessPhones = u.BusinessPhones ?? [],
+        MobilePhone = u.MobilePhone,
+        Mail = u.Mail,
+        OtherMails = u.OtherMails ?? [],
+        ProxyAddresses = u.ProxyAddresses ?? [],
+        FaxNumber = u.FaxNumber,
+        ImAddresses = u.ImAddresses ?? [],
+        MailNickname = u.MailNickname,
+
+        // Parental controls
+        AgeGroup = u.AgeGroup,
+        ConsentProvidedForMinor = u.ConsentProvidedForMinor,
+        LegalAgeGroupClassification = u.LegalAgeGroupClassification,
+
+        // Settings
+        AccountEnabled = u.AccountEnabled,
+        UsageLocation = u.UsageLocation,
+        PreferredDataLocation = u.PreferredDataLocation,
+
+        // On-premises
+        OnPremisesSyncEnabled = u.OnPremisesSyncEnabled,
+        OnPremisesLastSyncDateTime = u.OnPremisesLastSyncDateTime,
+        OnPremisesDistinguishedName = u.OnPremisesDistinguishedName,
+        OnPremisesExtensionAttributes = u.OnPremisesExtensionAttributes,
+        OnPremisesImmutableId = u.OnPremisesImmutableId,
+        OnPremisesProvisioningErrors = u.OnPremisesProvisioningErrors ?? [],
+        OnPremisesSamAccountName = u.OnPremisesSamAccountName,
+        OnPremisesSecurityIdentifier = u.OnPremisesSecurityIdentifier,
+        OnPremisesUserPrincipalName = u.OnPremisesUserPrincipalName,
+        OnPremisesDomainName = u.OnPremisesDomainName,
     };
 
     private static EntraGroup MapGroup(GraphGroup g)
@@ -459,14 +559,81 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public string? UserPrincipalName { get; init; }
         public string? GivenName { get; init; }
         public string? Surname { get; init; }
-        public string? JobTitle { get; init; }
-        public string? Mail { get; init; }
-        public string? MobilePhone { get; init; }
-        public string? OfficeLocation { get; init; }
-        public string? PreferredLanguage { get; init; }
-        public List<string>? BusinessPhones { get; init; }
-        public bool? AccountEnabled { get; init; }
+        public List<ObjectIdentityDto>? Identities { get; init; }
         public string? UserType { get; init; }
+        public string? CreationType { get; init; }
+        public DateTimeOffset? CreatedDateTime { get; init; }
+        public List<AssignedLicenseDto>? AssignedLicenses { get; init; }
+        public string? PreferredLanguage { get; init; }
+        public DateTimeOffset? SignInSessionsValidFromDateTime { get; init; }
+        public DateTimeOffset? LastPasswordChangeDateTime { get; init; }
+        public string? ExternalUserState { get; init; }
+        public DateTimeOffset? ExternalUserStateChangeDateTime { get; init; }
+        public string? PasswordPolicies { get; init; }
+        public PasswordProfileDto? PasswordProfile { get; init; }
+        public AuthorizationInfoDto? AuthorizationInfo { get; init; }
+
+        // Job Information
+        public string? JobTitle { get; init; }
+        public string? CompanyName { get; init; }
+        public string? Department { get; init; }
+        public string? EmployeeId { get; init; }
+        public string? EmployeeType { get; init; }
+        public DateTimeOffset? EmployeeHireDate { get; init; }
+        public EmployeeOrgDataDto? EmployeeOrgData { get; init; }
+        public string? OfficeLocation { get; init; }
+
+        // Contact Information
+        public string? StreetAddress { get; init; }
+        public string? City { get; init; }
+        public string? State { get; init; }
+        public string? PostalCode { get; init; }
+        public string? Country { get; init; }
+        public string? BusinessPhone { get; init; }
+        public List<string>? BusinessPhones { get; init; }
+        public string? MobilePhone { get; init; }
+        public string? Mail { get; init; }
+        public List<string>? OtherMails { get; init; }
+        public List<string>? ProxyAddresses { get; init; }
+        public string? FaxNumber { get; init; }
+        public List<string>? ImAddresses { get; init; }
+        public string? MailNickname { get; init; }
+
+        // Parental controls
+        public string? AgeGroup { get; init; }
+        public string? ConsentProvidedForMinor { get; init; }
+        public string? LegalAgeGroupClassification { get; init; }
+
+        // Settings
+        public bool? AccountEnabled { get; init; }
+        public string? UsageLocation { get; init; }
+        public string? PreferredDataLocation { get; init; }
+
+        // On-premises
+        public bool? OnPremisesSyncEnabled { get; init; }
+        public DateTimeOffset? OnPremisesLastSyncDateTime { get; init; }
+        public string? OnPremisesDistinguishedName { get; init; }
+        public OnPremisesExtensionAttributesDto? OnPremisesExtensionAttributes { get; init; }
+        public string? OnPremisesImmutableId { get; init; }
+        public List<OnPremisesProvisioningErrorDto>? OnPremisesProvisioningErrors { get; init; }
+        public string? OnPremisesSamAccountName { get; init; }
+        public string? OnPremisesSecurityIdentifier { get; init; }
+        public string? OnPremisesUserPrincipalName { get; init; }
+        public string? OnPremisesDomainName { get; init; }
+    }
+
+    private sealed record GraphManagerDto
+    {
+        public string Id { get; init; } = string.Empty;
+        public string? DisplayName { get; init; }
+        public string? UserPrincipalName { get; init; }
+    }
+
+    private sealed record GraphSponsorDto
+    {
+        public string Id { get; init; } = string.Empty;
+        public string? DisplayName { get; init; }
+        public string? UserPrincipalName { get; init; }
     }
 
     private sealed record GraphGroup
