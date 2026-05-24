@@ -25,21 +25,24 @@ SIGMA is a **wrapper API** that abstracts IAM/IGA/ITSM platform specifics behind
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                     Consumer / Client                     │
-│              (Internal tool, script, service)              │
+│              Client App (SIGMA-Web / CLI)                  │
+│           (User-delegated token via MSAL)                  │
 └──────────────────────────┬───────────────────────────────┘
                            │ HTTPS / JSON
-                           │ Auth: X-API-Key | JWT Bearer
+                           │ Auth: Bearer JWT (access_as_user)
                            ▼
 ┌──────────────────────────────────────────────────────────┐
 │  SIGMA.Api (Presentation Layer)                          │
 │                                                          │
-│  ┌─────────────┐  ┌─────────────────────────────────┐   │
-│  │ Auth        │  │ Minimal API Endpoints            │   │
-│  │ Handlers    │  │ /api/v1/entra/users              │   │
-│  │ (JWT+APIKey)│  │ /api/v1/entra/groups             │   │
-│  └─────────────┘  │ /api/v1/entra/service-principals │   │
-│                   └────────────┬────────────────────┘   │
+│  ┌───────────────────────────────────────────────────┐   │
+│  │ Microsoft.Identity.Web (JWT Bearer Validation)     │   │
+│  │ DelegatedUserPolicy (access_as_user + oid)         │   │
+│  ├───────────────────────────────────────────────────┤   │
+│  │ Minimal API Endpoints                              │   │
+│  │ /api/v1/entra/users                                │   │
+│  │ /api/v1/entra/groups                               │   │
+│  │ /api/v1/entra/service-principals                   │   │
+│  └────────────────────┬──────────────────────────────┘   │
 │  ┌─────────────────────────────┴────────────────────┐   │
 │  │ Middleware                                        │   │
 │  │ - ExceptionHandlingMiddleware                     │   │
@@ -198,20 +201,23 @@ ExceptionHandlingMiddleware
   │  ┌─── catch unhandled exceptions → RFC 9457 ProblemDetails
   │
   ▼
-AuthenticationMiddleware (JWT + API Key)
+Microsoft.Identity.Web (JWT Bearer Validation)
+  │  ┌─── Validates token against AzureAd config (Instance, TenantId, Audience)
+  │  ┌─── Checks signing keys from OpenID Connect metadata
   │
   ▼
 AuthorizationMiddleware
+  │  ┌─── DelegatedUserPolicy: requires access_as_user scope + oid claim
   │
   ▼
 Minimal API Endpoint ──► CQRS Handler ──► GraphClientService
-                                │
+                                │          (ClientSecretCredential)
                                 ▼
                           Result<T>
                            /     \
-                     Success    Failure
-                        │          │
-                  Results.Ok   Results.NotFound / Results.Problem
+                      Success    Failure
+                         │          │
+                   Results.Ok   Results.NotFound / Results.Problem
 ```
 
 All errors are returned as [RFC 9457](https://tools.ietf.org/html/rfc9457) Problem Details JSON:
@@ -231,13 +237,14 @@ All errors are returned as [RFC 9457](https://tools.ietf.org/html/rfc9457) Probl
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Runtime | .NET | 10.0 (LTS) |
+| Runtime | .NET | 10.0 |
 | API Framework | ASP.NET Core Minimal APIs | 10.0 |
-| Auth (Entra) | Azure.Identity (ClientSecretCredential) | 1.21+ |
-| Auth (Inbound) | JWT Bearer + Custom API Key handler | Built-in |
+| Auth (Inbound) | Microsoft.Identity.Web (JWT Bearer) | 4.9+ |
+| Auth (Outbound/Graph) | Azure.Identity (ClientSecretCredential) | 1.17+ |
+| Authorization | DelegatedUserPolicy (access_as_user scope + oid claim) | Custom |
 | Caching | Microsoft.Extensions.Caching.Hybrid | 10.6+ |
 | Resilience | Polly.Core | 8.6+ |
-| API Docs | Scalar.AspNetCore | 2.14+ |
+| API Docs | Scalar.AspNetCore + Swashbuckle.SwaggerUI | 2.14+ / 10+ |
 | Validation | FluentValidation | 12.1+ |
 | Testing | xUnit + NSubstitute + FluentAssertions | Latest |
 | Serialization | System.Text.Json | Built-in |
@@ -248,4 +255,5 @@ All errors are returned as [RFC 9457](https://tools.ietf.org/html/rfc9457) Probl
 
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
+| 2026-05-24 | 1.1.0 | SIGMA Team | Updated for Microsoft.Identity.Web + DelegatedUserPolicy + Two-App Registration |
 | 2026-05-22 | 1.0.0 | SIGMA Team | Initial architecture |

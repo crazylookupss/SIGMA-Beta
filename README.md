@@ -13,9 +13,9 @@
 
 ## Overview
 
-SIGMA is a **unified API abstraction layer** for identity and access management platforms. It provides a consistent REST interface across multiple providers (Entra ID, Okta, ServiceNow, etc.) with a **read-only, visibility-first** approach.
+SIGMA is an **enterprise identity gateway** that provides a consistent REST interface across identity platforms. It uses a **Two-App Registration** security model with **Microsoft.Identity.Web** for JWT validation, **Microsoft Graph** for directory data, and a custom **CQRS** architecture.
 
-**Phase 1** targets Microsoft Entra ID with the following capabilities:
+**Phase 1** targets Microsoft Entra ID (read-only, visibility-first):
 
 | Resource | Endpoint | Description |
 |----------|----------|-------------|
@@ -25,6 +25,11 @@ SIGMA is a **unified API abstraction layer** for identity and access management 
 | Groups | `GET /api/v1/entra/groups/{id}` | Single group details |
 | Service Principals | `GET /api/v1/entra/service-principals` | Paginated list of enterprise apps |
 | Service Principals | `GET /api/v1/entra/service-principals/{id}` | Single service principal details |
+| Service Principals | `GET /api/v1/entra/service-principals/dashboard` | Dashboard analytics |
+| App Registrations | `GET /api/v1/entra/applications` | Paginated list of app registrations |
+| App Registrations | `GET /api/v1/entra/applications/{id}` | Single app registration details |
+| App Registrations | `GET /api/v1/entra/applications/statistics` | Aggregated statistics |
+| Tenant | `GET /api/v1/entra/tenant` | Tenant metadata |
 
 ---
 
@@ -35,12 +40,21 @@ SIGMA is a **unified API abstraction layer** for identity and access management 
 │  SIGMA.Api  │────▶│  Application │────▶│ Infrastructure │────▶│  Domain  │
 │ (Endpoints) │     │   (CQRS)     │     │   (Graph API)  │     │(Entities)│
 └─────────────┘     └──────────────┘     └────────────────┘     └──────────┘
+       │                                                      
+       │ Microsoft.Identity.Web (JWT validation)
+       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ Inbound: DelegatedUserPolicy (access_as_user + oid)              │
+│ Outbound: ClientSecretCredential → Microsoft Graph               │
+│ Two-App Registration: API App (graph perms) + Client App (user) │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 - **Clean Architecture** with 4 layers (Domain → Application → Infrastructure → Api)
 - **Custom CQRS** without MediatR (no licensing risk)
 - **Result pattern** with typed errors mapping to HTTP status codes
-- **Direct REST calls** to Microsoft Graph (no SDK dependency)
+- **Microsoft.Identity.Web** for JWT Bearer validation
+- **Two-App Registration** security model
 
 ---
 
@@ -49,7 +63,8 @@ SIGMA is a **unified API abstraction layer** for identity and access management 
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- Microsoft Entra ID app registration with read-only permissions
+- Microsoft Entra ID tenant with admin access
+- Two App Registrations (see [Authentication](docs/authentication.md))
 
 ### Setup
 
@@ -59,12 +74,14 @@ git clone <repo-url>
 cd SIGMA
 dotnet restore
 
-# Configure Entra credentials
+# Configure Entra credentials (user-secrets for development)
 dotnet user-secrets init --project src/SIGMA.Api
-dotnet user-secrets set "Entra:TenantId" "<your-tenant-id>" --project src/SIGMA.Api
-dotnet user-secrets set "Entra:ClientId" "<your-client-id>" --project src/SIGMA.Api
-dotnet user-secrets set "Entra:ClientSecret" "<your-client-secret>" --project src/SIGMA.Api
-dotnet user-secrets set "Authentication:ApiKey" "<your-api-key>" --project src/SIGMA.Api
+dotnet user-secrets set "AzureAd:TenantId" "<tenant-id>" --project src/SIGMA.Api
+dotnet user-secrets set "AzureAd:ClientId" "<api-app-client-id>" --project src/SIGMA.Api
+dotnet user-secrets set "AzureAd:ClientSecret" "<api-app-client-secret>" --project src/SIGMA.Api
+dotnet user-secrets set "Entra:TenantId" "<tenant-id>" --project src/SIGMA.Api
+dotnet user-secrets set "Entra:ClientId" "<api-app-client-id>" --project src/SIGMA.Api
+dotnet user-secrets set "Entra:ClientSecret" "<api-app-client-secret>" --project src/SIGMA.Api
 
 # Run
 dotnet run --project src/SIGMA.Api
@@ -73,7 +90,8 @@ dotnet run --project src/SIGMA.Api
 ### Verify
 
 ```bash
-curl -H "X-API-Key: <your-api-key>" http://localhost:5000/api/v1/health
+curl http://localhost:5107/api/v1/health
+# {"status":"healthy","timestamp":"2026-05-24T12:00:00Z"}
 ```
 
 ---
@@ -84,8 +102,8 @@ Two interactive API reference UIs are available in development mode:
 
 | Tool | URL | Description |
 |------|-----|-------------|
-| **Swagger UI** | `http://localhost:5000/swagger` | Classic Swagger interface |
-| **Scalar** | `http://localhost:5000/scalar` | Modern, feature-rich interface |
+| **Swagger UI** | `http://localhost:5107/swagger` | Classic Swagger interface (OAuth2 enabled) |
+| **Scalar** | `http://localhost:5107/scalar` | Modern, feature-rich interface |
 
 Both read from the same OpenAPI spec at `/openapi/v1.json`.
 
@@ -93,10 +111,16 @@ Both read from the same OpenAPI spec at `/openapi/v1.json`.
 
 ## Authentication
 
-| Scheme | Header | Example |
-|--------|--------|---------|
-| API Key | `X-API-Key: <key>` | Internal tools, scripts |
-| JWT Bearer | `Authorization: Bearer <token>` | Enterprise services |
+SIGMA uses a **Two-App Registration** model (see [full authentication docs](docs/authentication.md)):
+
+| Component | App Registration | Purpose |
+|-----------|----------------|---------|
+| **API** | `SIGMA-Api` | Validates JWT, calls Microsoft Graph |
+| **Client** | `SIGMA-Web` | Signs in users, obtains delegated tokens |
+
+**Authorization policy:** `DelegatedUserPolicy` requires:
+- `access_as_user` scope in the JWT
+- `oid` (object ID) claim present
 
 ---
 
@@ -109,11 +133,10 @@ SIGMA/
 │   ├── SIGMA.Application/      # CQRS handlers, queries, responses
 │   ├── SIGMA.Domain/           # Entities, result pattern, error types
 │   └── SIGMA.Infrastructure/   # Graph REST client, configuration
-├── tests/                      # Unit & integration tests (future)
 ├── docs/
 │   ├── architecture.md
 │   ├── api-reference.md
-│   ├── authentication.md
+│   ├── authentication.md       # ↳ Two-App Registration model
 │   ├── deployment.md
 │   ├── providers.md
 │   └── development.md
@@ -127,13 +150,11 @@ SIGMA/
 
 ## Documentation
 
-Detailed documentation is available in the `docs/` directory:
-
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | Layer design, CQRS pattern, error handling |
 | [API Reference](docs/api-reference.md) | Full endpoint specs with examples |
-| [Authentication](docs/authentication.md) | Setup guide for API Key and JWT |
+| [Authentication](docs/authentication.md) | Two-App Registration model, setup guide |
 | [Deployment](docs/deployment.md) | Local, Azure, and Docker deployment |
 | [Providers](docs/providers.md) | Adding new IAM providers |
 | [Development](docs/development.md) | Coding conventions, Git workflow, testing |
@@ -157,11 +178,11 @@ main ──────●─────────●────────
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1** | Microsoft Entra ID (Users, Groups, Service Principals) | ✅ Complete |
+| **1** | Microsoft Entra ID (Users, Groups, Service Principals, App Registrations) | ✅ Complete |
 | **2** | Okta provider | 📋 Planned |
 | **3** | ServiceNow / ITSM providers | 📋 Planned |
 | **4** | Aggregated search across providers | 🔮 Future |
-| **5** | Write operations with approval workflows | 🔮 Future |
+| **5** | Write operations with approval workflows + SensitiveSelfServicePolicy | 🔮 Future |
 
 ---
 
