@@ -1,8 +1,6 @@
-using Microsoft.IdentityModel.Protocols;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.Resource;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using Swashbuckle.AspNetCore.SwaggerUI;
@@ -15,66 +13,22 @@ using SIGMA.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtAuthority = builder.Configuration["Authentication:Jwt:Authority"];
-var jwtAudience = builder.Configuration["Authentication:Jwt:Audience"];
-var tenantId = builder.Configuration["Entra:TenantId"];
+var tenantId = builder.Configuration["AzureAd:TenantId"];
+var apiClientId = builder.Configuration["AzureAd:ClientId"];
 
-var v1ConfigUrl = $"https://login.microsoftonline.com/{tenantId}/.well-known/openid-configuration";
-var v2ConfigUrl = $"https://login.microsoftonline.com/{tenantId}/v2.0/.well-known/openid-configuration";
-var commonConfigUrl = "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration";
-
-var v1ConfigManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-    v1ConfigUrl,
-    new OpenIdConnectConfigurationRetriever());
-
-var v2ConfigManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-    v2ConfigUrl,
-    new OpenIdConnectConfigurationRetriever());
-
-var commonConfigManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-    commonConfigUrl,
-    new OpenIdConnectConfigurationRetriever());
-
-// Retrieve and merge signing keys from Tenant (v1 & v2) and Microsoft Common keychains at startup
-var v1Config = await v1ConfigManager.GetConfigurationAsync();
-var v2Config = await v2ConfigManager.GetConfigurationAsync();
-var commonConfig = await commonConfigManager.GetConfigurationAsync();
-
-var allSigningKeys = v1Config.SigningKeys
-    .Concat(v2Config.SigningKeys)
-    .Concat(commonConfig.SigningKeys)
-    .GroupBy(k => k.KeyId)
-    .Select(g => g.First())
-    .ToList();
-
+// Configure JWT Bearer authentication via Microsoft.Identity.Web
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = jwtAuthority;
-        options.Audience = jwtAudience;
-        options.TokenValidationParameters = new()
-        {
-            ValidIssuers =
-            [
-                jwtAuthority?.TrimEnd('/'),
-                $"https://sts.windows.net/{tenantId}/",
-                $"https://login.microsoftonline.com/{tenantId}",
-                $"https://login.microsoftonline.com/{tenantId}/v2.0",
-                $"https://login.microsoftonline.com/common/v2.0",
-            ],
-            ValidAudiences =
-            [
-                jwtAudience,
-                "https://graph.microsoft.com",
-                tenantId,
-                builder.Configuration["Entra:ClientId"],
-                $"api://{builder.Configuration["Entra:ClientId"]}"
-            ],
-            IssuerSigningKeys = allSigningKeys,
-        };
-    });
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
-builder.Services.AddAuthorization();
+// DelegatedUserPolicy: requires access_as_user scope + stable oid claim
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("DelegatedUserPolicy", policy =>
+    {
+        policy.RequireScope("access_as_user");
+        policy.RequireClaim("oid");
+    });
+});
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -87,18 +41,28 @@ builder.Services.AddOpenApi(options =>
         document.Components ??= new OpenApiComponents();
         document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
 
-        document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+        document.Components.SecuritySchemes["OAuth2"] = new OpenApiSecurityScheme
         {
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            Description = "JWT Bearer token authentication"
+            Type = SecuritySchemeType.OAuth2,
+            Flows = new OpenApiOAuthFlows
+            {
+                AuthorizationCode = new OpenApiOAuthFlow
+                {
+                    AuthorizationUrl = new Uri($"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize"),
+                    TokenUrl = new Uri($"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token"),
+                    Scopes = new Dictionary<string, string>
+                    {
+                        { $"api://{apiClientId}/access_as_user", "Access SIGMA API on behalf of the signed-in user" }
+                    }
+                }
+            },
+            Description = "OAuth2 Authorization Code flow (Client App)"
         };
 
         document.Security ??= new List<OpenApiSecurityRequirement>();
         document.Security.Add(new OpenApiSecurityRequirement
         {
-            { new OpenApiSecuritySchemeReference("Bearer", document), new List<string>() }
+            { new OpenApiSecuritySchemeReference("OAuth2", document), new List<string>() }
         });
 
         return Task.CompletedTask;
@@ -118,6 +82,9 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/openapi/v1.json", "SIGMA API v1");
         options.RoutePrefix = "swagger";
         options.DocumentTitle = "SIGMA API — Swagger UI";
+        options.OAuthClientId(builder.Configuration["SwaggerOAuth:ClientId"]);
+        options.OAuthScopes($"api://{apiClientId}/access_as_user");
+        options.OAuthUsePkce();
     });
 
     app.MapScalarApiReference(options =>
@@ -137,7 +104,8 @@ api.MapHealthEndpoint();
 var auth = api.MapGroup("/auth");
 auth.MapTokenEndpoints();
 
-var entra = api.MapGroup("/entra").RequireAuthorization();
+var entra = api.MapGroup("/entra").RequireAuthorization("DelegatedUserPolicy");
+entra.MapTenantEndpoints();
 entra.MapUserEndpoints();
 entra.MapGroupEndpoints();
 entra.MapServicePrincipalEndpoints();

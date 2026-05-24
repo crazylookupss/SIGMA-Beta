@@ -13,4 +13,10 @@ public sealed record EntraServicePrincipal
     public List<string> Tags { get; init; } = [];
     public string? AppOwnerOrganizationId { get; init; }
     public DateTimeOffset? CreatedDateTime { get; init; }
+
+    // Telemetry fields
+    public string SignInStatus { get; init; } = "Active";
+    public int UsersCount { get; init; }
+    public DateTimeOffset? LastSignIn { get; init; }
 }
+

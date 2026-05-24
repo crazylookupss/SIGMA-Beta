@@ -33,8 +33,12 @@ internal sealed class ListServicePrincipalsHandler(IGraphClientService graphClie
                     Tags = sp.Tags,
                     AppOwnerOrganizationId = sp.AppOwnerOrganizationId,
                     CreatedDateTime = sp.CreatedDateTime,
+                    SignInStatus = sp.SignInStatus,
+                    UsersCount = sp.UsersCount,
+                    LastSignIn = sp.LastSignIn
                 })
                 .ToList(),
+
             NextLink = result.Value.NextLink,
             Count = result.Value.Count,
         };
