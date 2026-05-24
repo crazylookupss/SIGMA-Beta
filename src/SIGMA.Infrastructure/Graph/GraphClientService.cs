@@ -202,6 +202,94 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             $"applications/{Uri.EscapeDataString(id)}", MapApplication, select, cancellationToken);
     }
 
+    public async Task<Result<EntraTenant>> GetTenantDetailsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var orgResponse = await SendGetAsync("organization", cancellationToken);
+            if (!orgResponse.IsSuccessStatusCode)
+                return await HandleErrorResponse(orgResponse);
+
+            var orgWrapper = await orgResponse.Content.ReadFromJsonAsync<GraphCollectionWrapper<GraphOrganizationDto>>(JsonOptions, cancellationToken);
+            var org = orgWrapper?.Value?.FirstOrDefault();
+            if (org == null)
+                return Error.NotFound("Organization.NotFound", "No organization metadata found.");
+
+            // Fetch directory counts in parallel for optimal load times
+            var usersTask = GetCountAsync("users", eventualConsistency: true, cancellationToken);
+            var groupsTask = GetCountAsync("groups", eventualConsistency: true, cancellationToken);
+            var appsTask = GetCountAsync("applications", eventualConsistency: true, cancellationToken);
+            var spTask = GetCountAsync("servicePrincipals", eventualConsistency: true, cancellationToken, "tags/Any(x: x eq 'WindowsAzureActiveDirectoryIntegratedApp')");
+            var devicesTask = GetCountAsync("devices", eventualConsistency: true, cancellationToken);
+
+
+
+            await Task.WhenAll(usersTask, groupsTask, appsTask, spTask, devicesTask);
+
+            var license = "Microsoft Entra ID Free";
+            try
+            {
+                var skuResponse = await SendGetAsync("subscribedSkus", cancellationToken);
+                if (skuResponse.IsSuccessStatusCode)
+                {
+                    var skuWrapper = await skuResponse.Content.ReadFromJsonAsync<GraphCollectionWrapper<GraphSkuDto>>(JsonOptions, cancellationToken);
+                    var skus = skuWrapper?.Value ?? [];
+                    if (skus.Any(s => s.SkuPartNumber == "AAD_PREMIUM_P2"))
+                        license = "Microsoft Entra ID P2";
+                    else if (skus.Any(s => s.SkuPartNumber == "AAD_PREMIUM"))
+                        license = "Microsoft Entra ID P1";
+                }
+            }
+            catch 
+            {
+                // Fall back gracefully to Microsoft Entra ID Free if permissions to read SKUs are restricted
+            }
+
+            var primaryDomain = org.VerifiedDomains?.FirstOrDefault(d => d.IsDefault == true)?.Name ?? "unknown";
+
+            return Result.Success(new EntraTenant
+            {
+                Id = org.Id ?? string.Empty,
+                DisplayName = org.DisplayName ?? "Default Directory",
+                PrimaryDomain = primaryDomain,
+                License = license,
+                UsersCount = usersTask.Result,
+                GroupsCount = groupsTask.Result,
+                ApplicationsCount = appsTask.Result,
+                EnterpriseApplicationsCount = spTask.Result,
+                DevicesCount = devicesTask.Result
+            });
+        }
+        catch (Exception ex)
+        {
+            return Error.ExternalService("TenantError", ex.Message);
+        }
+    }
+
+    private async Task<int> GetCountAsync(string path, bool eventualConsistency, CancellationToken ct, string? filter = null)
+    {
+        try
+        {
+            var url = $"{path}?$top=1&$count=true";
+            if (!string.IsNullOrEmpty(filter))
+            {
+                url += $"&$filter={Uri.EscapeDataString(filter)}";
+            }
+            var response = await SendGetAsync(url, ct, eventualConsistency);
+            if (!response.IsSuccessStatusCode)
+                return 0;
+
+            var wrapper = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<object>>(JsonOptions, ct);
+            return wrapper?.OdataCount ?? 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+
+
     private async Task<Result<PagedResponse<TTarget>>> GetPagedAsync<TSource, TTarget>(
         string path, Func<TSource, TTarget> mapper,
         string? select, string? filter, int? top, int? skip, bool? count,
@@ -301,14 +389,20 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         }
     }
 
-    private async Task<HttpResponseMessage> SendGetAsync(string url, CancellationToken ct)
+    private async Task<HttpResponseMessage> SendGetAsync(string url, CancellationToken ct, bool eventualConsistency = false)
     {
         var token = await GetTokenAsync(ct);
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        
+        if (eventualConsistency)
+        {
+            request.Headers.Add("ConsistencyLevel", "eventual");
+        }
 
         return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
     }
+
 
     private async Task<string> GetTokenAsync(CancellationToken ct)
     {
@@ -782,4 +876,23 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         [JsonPropertyName("@odata.count")]
         public int? OdataCount { get; init; }
     }
+
+    private sealed record GraphOrganizationDto
+    {
+        public string? Id { get; init; }
+        public string? DisplayName { get; init; }
+        public List<VerifiedDomainDto>? VerifiedDomains { get; init; }
+    }
+
+    private sealed record VerifiedDomainDto
+    {
+        public string? Name { get; init; }
+        public bool? IsDefault { get; init; }
+    }
+
+    private sealed record GraphSkuDto
+    {
+        public string? SkuPartNumber { get; init; }
+    }
 }
+
