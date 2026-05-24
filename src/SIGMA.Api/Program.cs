@@ -138,9 +138,11 @@ var auth = api.MapGroup("/auth");
 auth.MapTokenEndpoints();
 
 var entra = api.MapGroup("/entra").RequireAuthorization();
+entra.MapTenantEndpoints();
 entra.MapUserEndpoints();
 entra.MapGroupEndpoints();
 entra.MapServicePrincipalEndpoints();
 entra.MapApplicationEndpoints();
+
 
 app.Run();

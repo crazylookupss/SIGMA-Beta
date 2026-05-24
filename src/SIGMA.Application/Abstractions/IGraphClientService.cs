@@ -33,4 +33,8 @@ public interface IGraphClientService
 
     Task<Result<EntraApplication>> GetApplicationByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default);
+
+    Task<Result<EntraTenant>> GetTenantDetailsAsync(
+        CancellationToken cancellationToken = default);
 }
+
