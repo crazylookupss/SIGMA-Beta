@@ -31,7 +31,7 @@ dotnet user-secrets init --project src/SIGMA.Api
 dotnet user-secrets set "Entra:TenantId" "<tenant-id>" --project src/SIGMA.Api
 dotnet user-secrets set "Entra:ClientId" "<client-id>" --project src/SIGMA.Api
 dotnet user-secrets set "Entra:ClientSecret" "<client-secret>" --project src/SIGMA.Api
-dotnet user-secrets set "Authentication:ApiKey" "<api-key>" --project src/SIGMA.Api
+dotnet user-secrets set "SwaggerOAuth:ClientId" "<web-app-client-id>" --project src/SIGMA.Api
 ```
 
 ---
