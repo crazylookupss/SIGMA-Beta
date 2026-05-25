@@ -103,7 +103,7 @@ internal static class ApplicationEndpoints
                 return Results.Ok(new { data = new List<EntraAppPermission>() });
 
             var detailsResult = await graph.GetApplicationByAppIdAsync(appResult.Value.AppId, ct);
-            if (detailsResult.IsFailure)
+            if (detailsResult.IsFailure || detailsResult.Value is null)
                 return Results.Ok(new { data = new List<EntraAppPermission>() });
             return Results.Ok(new { data = detailsResult.Value.RequiredResourceAccess });
         })
