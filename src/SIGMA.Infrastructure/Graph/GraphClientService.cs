@@ -398,7 +398,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             if (app == null)
                 return Error.NotFound("Application.NotFound", $"No application registration found with appId '{appId}'.");
 
-            return Result.Success(MapApplicationDetails(app));
+            var appDetails = MapApplicationDetails(app);
+            await EnrichPermissionsAsync(appDetails.RequiredResourceAccess, ct);
+            return Result.Success(appDetails);
         }
         catch (HttpRequestException ex)
         {
@@ -407,6 +409,96 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         catch (Exception ex)
         {
             return Error.ExternalService("GraphUnexpected", $"Unexpected error: {ex.Message}");
+        }
+    }
+
+    private async Task EnrichPermissionsAsync(List<EntraAppPermission> permissions, CancellationToken ct)
+    {
+        if (permissions == null || permissions.Count == 0)
+            return;
+
+        var uniqueResourceAppIds = permissions
+            .Select(p => p.ResourceAppId)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList();
+
+        if (uniqueResourceAppIds.Count == 0)
+            return;
+
+        // Construct filter: appId eq 'guid1' or appId eq 'guid2'
+        var filterParts = uniqueResourceAppIds.Select(id => $"appId eq '{Uri.EscapeDataString(id)}'");
+        var filter = string.Join(" or ", filterParts);
+        var select = "appId,displayName,oauth2PermissionScopes,appRoles";
+        var url = BuildUrl("servicePrincipals", select, filter, null, null, null);
+
+        try
+        {
+            var response = await SendGetAsync(url, ct);
+            if (!response.IsSuccessStatusCode)
+                return;
+
+            var wrapper = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<GraphServicePrincipalResolveDto>>(JsonOptions, ct);
+            if (wrapper?.Value == null || wrapper.Value.Count == 0)
+                return;
+
+            var resourceNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var delegatedPermissionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var applicationPermissionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var sp in wrapper.Value)
+            {
+                if (string.IsNullOrEmpty(sp.AppId)) continue;
+
+                if (!string.IsNullOrEmpty(sp.DisplayName))
+                {
+                    resourceNameMap[sp.AppId] = sp.DisplayName;
+                }
+
+                if (sp.Oauth2PermissionScopes != null)
+                {
+                    foreach (var scope in sp.Oauth2PermissionScopes)
+                    {
+                        if (string.IsNullOrEmpty(scope.Id) || string.IsNullOrEmpty(scope.Value)) continue;
+                        delegatedPermissionMap[$"{sp.AppId}:{scope.Id}"] = scope.Value;
+                    }
+                }
+
+                if (sp.AppRoles != null)
+                {
+                    foreach (var role in sp.AppRoles)
+                    {
+                        if (string.IsNullOrEmpty(role.Id) || string.IsNullOrEmpty(role.Value)) continue;
+                        applicationPermissionMap[$"{sp.AppId}:{role.Id}"] = role.Value;
+                    }
+                }
+            }
+
+            for (int i = 0; i < permissions.Count; i++)
+            {
+                var p = permissions[i];
+                var appId = p.ResourceAppId;
+                var resolvedName = resourceNameMap.TryGetValue(appId, out var name) ? name : appId;
+
+                var resolvedDelegated = p.DelegatedPermissions
+                    .Select(guid => delegatedPermissionMap.TryGetValue($"{appId}:{guid}", out var val) ? val : guid)
+                    .ToList();
+
+                var resolvedApplication = p.ApplicationPermissions
+                    .Select(guid => applicationPermissionMap.TryGetValue($"{appId}:{guid}", out var val) ? val : guid)
+                    .ToList();
+
+                permissions[i] = p with
+                {
+                    ResourceDisplayName = resolvedName,
+                    DelegatedPermissions = resolvedDelegated,
+                    ApplicationPermissions = resolvedApplication
+                };
+            }
+        }
+        catch
+        {
+            // Fail gracefully - leave permissions as raw GUIDs
         }
     }
 
@@ -1088,17 +1180,25 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
                 // Protocol detection
                 var protocol = "Unknown";
-                if (hasRedirectUris)
+                var isSaml = !string.IsNullOrEmpty(app.SamlMetadataUrl) || 
+                             (app.Tags != null && (app.Tags.Contains("WindowsAzureActiveDirectoryCustomSingleSignOnApplication") || 
+                                                   app.Tags.Contains("WindowsAzureActiveDirectoryGalleryApplicationNonPrimaryV1")));
+
+                if (isSaml)
+                {
+                    protocol = "SAML";
+                }
+                else if (hasRedirectUris)
                 {
                     var httpUris = (app.Web?.RedirectUris ?? [])
                         .Concat(app.PublicClient?.RedirectUris ?? [])
                         .Any(u => u.StartsWith("http", StringComparison.OrdinalIgnoreCase));
                     protocol = httpUris ? "OpenID Connect" : "OAuth 2.0";
                 }
-                if (!string.IsNullOrEmpty(app.SamlMetadataUrl))
-                    protocol = "SAML";
-                if (app.Api?.RequestedAccessTokenVersion != null && !hasRedirectUris)
+                else if (app.Api?.RequestedAccessTokenVersion != null && !hasRedirectUris)
+                {
                     protocol = "Client Credentials";
+                }
 
                 if (protocolCounts.ContainsKey(protocol))
                     protocolCounts[protocol]++;
@@ -1691,6 +1791,28 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public string? Id { get; init; }
         public string? AppId { get; init; }
         public string? DisplayName { get; init; }
+    }
+
+    private sealed record GraphServicePrincipalResolveDto
+    {
+        [JsonPropertyName("appId")] public string? AppId { get; init; }
+        [JsonPropertyName("displayName")] public string? DisplayName { get; init; }
+        [JsonPropertyName("oauth2PermissionScopes")] public List<GraphScopeResolveDto>? Oauth2PermissionScopes { get; init; }
+        [JsonPropertyName("appRoles")] public List<GraphAppRoleResolveDto>? AppRoles { get; init; }
+    }
+
+    private sealed record GraphScopeResolveDto
+    {
+        [JsonPropertyName("id")] public string? Id { get; init; }
+        [JsonPropertyName("value")] public string? Value { get; init; }
+        [JsonPropertyName("adminConsentDisplayName")] public string? AdminConsentDisplayName { get; init; }
+    }
+
+    private sealed record GraphAppRoleResolveDto
+    {
+        [JsonPropertyName("id")] public string? Id { get; init; }
+        [JsonPropertyName("value")] public string? Value { get; init; }
+        [JsonPropertyName("displayName")] public string? DisplayName { get; init; }
     }
 }
 
