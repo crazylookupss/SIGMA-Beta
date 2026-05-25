@@ -20,17 +20,30 @@ SIGMA is an **enterprise identity gateway** that provides a consistent REST inte
 
 | Resource | Endpoint | Description |
 |----------|----------|-------------|
-| Users | `GET /api/v1/entra/users` | Paginated list with OData filtering |
-| Users | `GET /api/v1/entra/users/{id}` | Single user details |
-| Groups | `GET /api/v1/entra/groups` | Paginated list with OData filtering |
-| Groups | `GET /api/v1/entra/groups/{id}` | Single group details |
-| Service Principals | `GET /api/v1/entra/service-principals` | Paginated list of enterprise apps |
-| Service Principals | `GET /api/v1/entra/service-principals/{id}` | Single service principal details |
-| Service Principals | `GET /api/v1/entra/service-principals/dashboard` | Dashboard analytics |
-| App Registrations | `GET /api/v1/entra/applications` | Paginated list of app registrations |
-| App Registrations | `GET /api/v1/entra/applications/{id}` | Single app registration details |
-| App Registrations | `GET /api/v1/entra/applications/statistics` | Aggregated statistics |
-| Tenant | `GET /api/v1/entra/tenant` | Tenant metadata |
+| **Health** | `GET /api/v1/health` | Service health status & timestamp |
+| **Tenant** | `GET /api/v1/entra/tenant` | Tenant metadata, organization info & connection statistics |
+| **Users** | `GET /api/v1/entra/users` | Paginated list with OData filtering |
+| **Users** | `GET /api/v1/entra/users/{id}` | Single user details |
+| **Groups** | `GET /api/v1/entra/groups` | Paginated list with OData filtering |
+| **Groups** | `GET /api/v1/entra/groups/{id}` | Single group details |
+| **Service Principals** | `GET /api/v1/entra/service-principals` | Paginated list of enterprise apps |
+| **Service Principals** | `GET /api/v1/entra/service-principals/{id}` | Single service principal details |
+| **Service Principals** | `GET /api/v1/entra/service-principals/dashboard` | Dashboard analytics & metrics |
+| **Service Principals** | `GET /api/v1/entra/service-principals/{id}/application` | Linked App Registration details |
+| **Service Principals** | `GET /api/v1/entra/service-principals/{id}/assignments` | Users and groups assigned to this app |
+| **Service Principals** | `GET /api/v1/entra/service-principals/{id}/owners` | Owners of the enterprise app |
+| **Service Principals** | `GET /api/v1/entra/service-principals/{id}/signins` | Recent sign-in activity (requires P1/P2) |
+| **App Registrations** | `GET /api/v1/entra/applications` | Paginated list of app registrations |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}` | Single app registration details |
+| **App Registrations** | `GET /api/v1/entra/applications/statistics` | Aggregated app registration statistics |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}/owners` | Owners of the App Registration |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}/service-principals` | Linked enterprise applications |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}/credentials` | Certificate and secret health/expiry status |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}/permissions` | Required API permissions |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}/signins` | Recent sign-in activity (requires P1/P2) |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}/audit-logs` | Recent directory audit and sign-in logs |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}/manifest` | Raw JSON application manifest |
+| **App Registrations** | `GET /api/v1/entra/applications/{id}/service-principal-ref` | Primary linked enterprise application reference |
 
 ---
 
