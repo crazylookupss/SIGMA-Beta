@@ -3,19 +3,20 @@
 | Metadata | Value |
 |----------|-------|
 | **Version** | 1.0.0 |
-| **Base URL** | `http://localhost:5000/api/v1` |
-| **Last Updated** | 2026-05-22 |
+| **Base URL** | `http://localhost:5107` |
+| **Last Updated** | 2026-05-25 |
 
 ---
 
 ## 1. Authentication
 
-All endpoints (except `/health`) require authentication. Choose one:
+All endpoints (except `/api/v1/health`) require a valid JWT Bearer token issued by Microsoft Entra ID.
 
 | Scheme | Header | Example |
 |--------|--------|---------|
-| API Key | `X-API-Key: <key>` | `X-API-Key: sigma-dev-key` |
 | JWT Bearer | `Authorization: Bearer <token>` | `Authorization: Bearer eyJ...` |
+
+The token must include the `access_as_user` scope and a valid `oid` (object ID) claim (enforced by `DelegatedUserPolicy`).
 
 ---
 
@@ -59,8 +60,8 @@ GET /api/v1/entra/users
 
 **Example Request:**
 ```bash
-curl -H "X-API-Key: sigma-dev-key" \
-  "http://localhost:5000/api/v1/entra/users?$top=10&$count=true&$select=id,displayName,userPrincipalName"
+curl -H "Authorization: Bearer <access-token>" \
+  "http://localhost:5107/api/v1/entra/users?$top=10&$count=true&$select=id,displayName,userPrincipalName"
 ```
 
 **Response 200:**
@@ -103,8 +104,8 @@ GET /api/v1/entra/users/{id}
 
 **Example Request:**
 ```bash
-curl -H "X-API-Key: sigma-dev-key" \
-  "http://localhost:5000/api/v1/entra/users/aaaaaaaa-0000-1111-2222-bbbbbbbbbbbb?$select=id,displayName,mail"
+curl -H "Authorization: Bearer <access-token>" \
+  "http://localhost:5107/api/v1/entra/users/aaaaaaaa-0000-1111-2222-bbbbbbbbbbbb?$select=id,displayName,mail"
 ```
 
 **Response 200:**
@@ -152,8 +153,8 @@ GET /api/v1/entra/groups
 
 **Example Request:**
 ```bash
-curl -H "X-API-Key: sigma-dev-key" \
-  "http://localhost:5000/api/v1/entra/groups?$filter=securityEnabled eq true&$top=20"
+curl -H "Authorization: Bearer <access-token>" \
+  "http://localhost:5107/api/v1/entra/groups?$filter=securityEnabled eq true&$top=20"
 ```
 
 **Response 200:**
@@ -206,8 +207,8 @@ GET /api/v1/entra/service-principals
 
 **Example Request:**
 ```bash
-curl -H "X-API-Key: sigma-dev-key" \
-  "http://localhost:5000/api/v1/entra/service-principals?$select=id,displayName,appId,accountEnabled&$top=10"
+curl -H "Authorization: Bearer <access-token>" \
+  "http://localhost:5107/api/v1/entra/service-principals?$select=id,displayName,appId,accountEnabled&$top=10"
 ```
 
 **Response 200:**
