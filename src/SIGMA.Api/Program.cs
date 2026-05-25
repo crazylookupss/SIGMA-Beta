@@ -109,6 +109,18 @@ builder.Services.AddOpenApi(options =>
 
 var app = builder.Build();
 
+// Enable forwarded headers (X-Forwarded-For, X-Forwarded-Proto)
+// Required when deployed behind a load balancer (Azure App Service, AWS ALB, etc.)
+// Configure via "ForwardedHeaders:Enabled" or env var "ForwardedHeaders__Enabled"
+if (builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                           | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+    });
+}
+
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
