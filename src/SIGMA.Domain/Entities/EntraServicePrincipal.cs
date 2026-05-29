@@ -18,5 +18,16 @@ public sealed record EntraServicePrincipal
     public string SignInStatus { get; init; } = "Active";
     public int UsersCount { get; init; }
     public DateTimeOffset? LastSignIn { get; init; }
+    public bool AppRoleAssignmentRequired { get; init; }
+    public string? PreferredSingleSignOnMode { get; init; }
+
+    // Advanced properties
+    public string? AppDescription { get; init; }
+    public List<string> NotificationEmailAddresses { get; init; } = [];
+    public List<object> AppRoles { get; init; } = [];
+    public List<object> KeyCredentials { get; init; } = [];
+    public List<object> PasswordCredentials { get; init; } = [];
+    public int? AssignedUserCount { get; init; }
+    public int? AssignedGroupCount { get; init; }
 }
 

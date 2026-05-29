@@ -29,6 +29,18 @@ internal sealed class GetServicePrincipalHandler(IGraphClientService graphClient
             Tags = sp.Tags,
             AppOwnerOrganizationId = sp.AppOwnerOrganizationId,
             CreatedDateTime = sp.CreatedDateTime,
+
+            AppDescription = sp.AppDescription,
+            NotificationEmailAddresses = sp.NotificationEmailAddresses,
+            AppRoles = sp.AppRoles,
+            KeyCredentials = sp.KeyCredentials,
+            PasswordCredentials = sp.PasswordCredentials,
+            AssignedUserCount = sp.AssignedUserCount,
+            AssignedGroupCount = sp.AssignedGroupCount,
+            SignInStatus = sp.SignInStatus,
+            UsersCount = sp.UsersCount,
+            AppRoleAssignmentRequired = sp.AppRoleAssignmentRequired,
+            PreferredSingleSignOnMode = sp.PreferredSingleSignOnMode
         };
 
         return Result.Success(response);

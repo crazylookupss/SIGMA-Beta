@@ -1,0 +1,40 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "AzureAd": {
+    "Instance": "https://login.microsoftonline.com/",
+    "Domain": "common",
+    "TenantId": "YOUR_TENANT_ID",
+    "ClientId": "YOUR_API_APP_CLIENT_ID",
+    "ClientSecret": "YOUR_API_APP_CLIENT_SECRET",
+    "Audience": "api://YOUR_API_APP_CLIENT_ID"
+  },
+  "SwaggerOAuth": {
+    "ClientId": "YOUR_CLIENT_APP_CLIENT_ID"
+  },
+  "Security": {
+    "SensitiveScope": "sensitive_selfservice"
+  },
+  "Entra": {
+    "TenantId": "YOUR_TENANT_ID",
+    "ClientId": "YOUR_API_APP_CLIENT_ID",
+    "ClientSecret": "YOUR_API_APP_CLIENT_SECRET",
+    "Scopes": [ "https://graph.microsoft.com/.default" ]
+  },
+  "Kestrel": {
+    "Endpoints": {
+      "Http": {
+        "Url": "http://0.0.0.0:5107"
+      }
+    }
+  },
+  "ForwardedHeaders": {
+    "Enabled": true,
+    "ForwardedHeaders": "XForwardedFor,XForwardedProto"
+  }
+}
