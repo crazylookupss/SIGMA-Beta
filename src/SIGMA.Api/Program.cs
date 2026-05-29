@@ -6,6 +6,7 @@ using Scalar.AspNetCore;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using SIGMA.Api.Endpoints;
 using SIGMA.Api.Endpoints.Entra;
+using SIGMA.Api.Hubs;
 using SIGMA.Api.Middleware;
 using SIGMA.Application;
 using SIGMA.Infrastructure;
@@ -71,6 +72,21 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpClient();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "https://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<SignalREventBus>();
+builder.Services.AddSingleton<SIGMA.Application.Abstractions.IEventBus>(sp => sp.GetRequiredService<SignalREventBus>());
 
 builder.Services.AddOpenApi(options =>
 {
@@ -144,6 +160,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -157,5 +174,7 @@ entra.MapUserEndpoints();
 entra.MapGroupEndpoints();
 entra.MapServicePrincipalEndpoints();
 entra.MapApplicationEndpoints();
+
+app.MapHub<SigmaHub>("/hubs/sigma");
 
 app.Run();

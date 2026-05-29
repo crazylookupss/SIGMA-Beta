@@ -205,11 +205,16 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     public async Task<Result<EntraServicePrincipal>> GetServicePrincipalByIdAsync(
         string id, string? select, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrEmpty(select))
+        {
+            select = "id,appId,displayName,appDisplayName,servicePrincipalType,accountEnabled,publisherName,signInAudience,tags,appOwnerOrganizationId,createdDateTime,appRoleAssignmentRequired,preferredSingleSignOnMode,description,notificationEmailAddresses,appRoles,keyCredentials,passwordCredentials";
+        }
+
         var result = await GetSingleAsync<GraphServicePrincipalDto, EntraServicePrincipal>(
             $"servicePrincipals/{Uri.EscapeDataString(id)}", MapServicePrincipal, select, cancellationToken);
 
         if (result.IsFailure)
-            return result;
+            return result.Error!;
 
         var enriched = await EnrichServicePrincipalAsync(result.Value!, cancellationToken);
         return Result.Success(enriched);
@@ -280,6 +285,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         return sp with
         {
             UsersCount = usersCount,
+            AssignedUserCount = usersCount,
+            AssignedGroupCount = 0,
             SignInStatus = status,
             LastSignIn = lastSignIn
         };
@@ -384,9 +391,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         try
         {
             var filter = $"appId eq '{Uri.EscapeDataString(appId)}'";
-            var select = "id,appId,displayName,signInAudience,publisherDomain,identifierUris,createdDateTime,applicationTemplateId,"
+            var select = "id,appId,displayName,signInAudience,publisherDomain,identifierUris,tags,createdDateTime,applicationTemplateId,"
                        + "web,api,requiredResourceAccess,appRoles,keyCredentials,passwordCredentials,info,"
-                       + "verifiedPublisher,certification,samlMetadataUrl";
+                       + "verifiedPublisher,certification,samlMetadataUrl,tokenEncryptionKeyId,isFallbackPublicClient,publicClient";
             var url = BuildUrl("applications", select, filter, null, null, null);
             var response = await SendGetAsync(url, ct, eventualConsistency: true);
 
@@ -526,6 +533,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         var redirectUris = new List<string>();
         var logoutUrls = new List<string>();
         string? homePageUrl = null;
+        bool? enableIdToken = null;
+        bool? enableAccessToken = null;
 
         if (app.Web != null)
         {
@@ -534,10 +543,30 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             homePageUrl = app.Web.HomePageUrl;
             if (app.Web.LogoutUrl != null)
                 logoutUrls.Add(app.Web.LogoutUrl);
+            if (app.Web.ImplicitGrantSettings != null)
+            {
+                enableIdToken = app.Web.ImplicitGrantSettings.EnableIdTokenIssuance;
+                enableAccessToken = app.Web.ImplicitGrantSettings.EnableAccessTokenIssuance;
+            }
         }
 
-        if (app.PublicClient?.RedirectUris != null)
-            redirectUris.AddRange(app.PublicClient.RedirectUris);
+        var publicClientRedirects = app.PublicClient?.RedirectUris ?? [];
+        if (publicClientRedirects.Count > 0)
+            redirectUris.AddRange(publicClientRedirects);
+
+        var apiScopes = new List<string>();
+        if (app.Api?.Oauth2PermissionScopes != null)
+        {
+            foreach (var scope in app.Api.Oauth2PermissionScopes)
+            {
+                if (scope is Dictionary<string, object> scopeDict &&
+                    scopeDict.TryGetValue("value", out var scopeVal) &&
+                    scopeVal is string scopeStr)
+                {
+                    apiScopes.Add(scopeStr);
+                }
+            }
+        }
 
         var requiredAccess = new List<EntraAppPermission>();
         if (app.RequiredResourceAccess != null)
@@ -569,6 +598,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             SignInAudience = app.SignInAudience,
             PublisherDomain = app.PublisherDomain,
             IdentifierUris = app.IdentifierUris ?? [],
+            Tags = app.Tags ?? [],
             RedirectUris = redirectUris,
             LogoutUrls = logoutUrls,
             HomePageUrl = homePageUrl,
@@ -582,6 +612,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 Usage = k.Usage,
                 StartDateTime = k.StartDateTime,
                 EndDateTime = k.EndDateTime,
+                Thumbprint = DecodeThumbprint(k.CustomKeyIdentifier),
             }).ToList(),
             PasswordCredentials = (app.PasswordCredentials ?? []).Select(p => new EntraPasswordCredential
             {
@@ -592,6 +623,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 Hint = p.Hint,
             }).ToList(),
             SamlMetadataUrl = app.SamlMetadataUrl,
+            TokenEncryptionKeyId = app.TokenEncryptionKeyId,
             ApplicationTemplateId = app.ApplicationTemplateId,
             CreatedDateTime = app.CreatedDateTime,
             LogoUrl = app.Info?.LogoUrl,
@@ -612,6 +644,13 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 CertificationExpirationDateTime = app.Certification.CertificationExpirationDateTime,
                 CertificationDetailsUrl = app.Certification.CertificationDetailsUrl,
             },
+            IsFallbackPublicClient = app.IsFallbackPublicClient,
+            EnableIdTokenIssuance = enableIdToken,
+            EnableAccessTokenIssuance = enableAccessToken,
+            RequestedAccessTokenVersion = app.Api?.RequestedAccessTokenVersion,
+            AcceptMappedClaims = app.Api?.AcceptMappedClaims,
+            Oauth2PermissionScopeValues = apiScopes,
+            PublicClientRedirectUris = publicClientRedirects,
         };
     }
 
@@ -1018,6 +1057,13 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         Tags = sp.Tags ?? [],
         AppOwnerOrganizationId = sp.AppOwnerOrganizationId,
         CreatedDateTime = sp.CreatedDateTime,
+        AppRoleAssignmentRequired = sp.AppRoleAssignmentRequired,
+        PreferredSingleSignOnMode = sp.PreferredSingleSignOnMode,
+        AppDescription = sp.AppDescription,
+        NotificationEmailAddresses = sp.NotificationEmailAddresses ?? [],
+        AppRoles = sp.AppRoles ?? [],
+        KeyCredentials = sp.KeyCredentials ?? [],
+        PasswordCredentials = sp.PasswordCredentials ?? [],
     };
 
     private static EntraApplication MapApplication(GraphApplicationDto app) => new()
@@ -1427,7 +1473,249 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         });
     }
 
+    public async Task<List<EntraGroupMember>> GetGroupMembersAsync(
+        string groupId, CancellationToken ct = default)
+    {
+        try
+        {
+            var url = $"groups/{Uri.EscapeDataString(groupId)}/members?$select=id,displayName,userPrincipalName,createdDateTime";
+            var wrapper = await GetCollectionListAsync<GraphMemberEntry>(url, ct);
+            return wrapper.Select(MapGroupMember).ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<List<EntraGroupOwner>> GetGroupOwnersAsync(
+        string groupId, CancellationToken ct = default)
+    {
+        try
+        {
+            var url = $"groups/{Uri.EscapeDataString(groupId)}/owners?$select=id,displayName,userPrincipalName";
+            var wrapper = await GetCollectionListAsync<GraphOwnerEntry>(url, ct);
+            return wrapper.Select(MapGroupOwner).ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<List<EntraGroupApplication>> GetGroupAppRoleAssignmentsAsync(
+        string groupId, CancellationToken ct = default)
+    {
+        try
+        {
+            var url = $"groups/{Uri.EscapeDataString(groupId)}/appRoleAssignments?$select=id,appRoleId,appRoleValue,resourceDisplayName,resourceId,principalDisplayName,createdDateTime";
+            var wrapper = await GetCollectionListAsync<GraphAppRoleAssignment>(url, ct);
+            return wrapper.Select(MapGroupApplication).ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<List<EntraGroupDevice>> GetGroupDevicesAsync(
+        string groupId, CancellationToken ct = default)
+    {
+        try
+        {
+            var url = $"groups/{Uri.EscapeDataString(groupId)}/members/microsoft.graph.device?$select=id,displayName,deviceId,operatingSystem,osVersion,isCompliant,isManaged,trustType";
+            var wrapper = await GetCollectionListAsync<GraphDeviceEntry>(url, ct);
+            return wrapper.Select(MapGroupDevice).ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<List<EntraGroupAuditLog>> GetGroupAuditLogsAsync(
+        string groupId, int top = 50, CancellationToken ct = default)
+    {
+        try
+        {
+            var filter = $"targetResources/any(t:t/id eq '{Uri.EscapeDataString(groupId)}')";
+            var select = "id,activityDisplayName,category,initiatedBy,result,resultReason,activityDateTime,correlationId,targetResources";
+            var url = BuildUrl("auditLogs/directoryAudits", select, filter, top, null, null);
+            var response = await SendGetAsync(url, ct);
+            if (!response.IsSuccessStatusCode)
+                return [];
+
+            var body = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<GraphDirectoryAuditEntry>>(JsonOptions, ct);
+            if (body?.Value == null)
+                return [];
+
+            return body.Value.Select(MapGroupAuditLog).ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<List<EntraGroupAccessReview>> GetGroupAccessReviewsAsync(
+        string groupId, CancellationToken ct = default)
+    {
+        try
+        {
+            var filter = $"scope/microsoft.graph.accessReviewQueryScope/query eq '/groups/{Uri.EscapeDataString(groupId)}'";
+            var select = "id,displayName,status,startDate,endDate,reviewers,instances";
+            var url = BuildUrl("identityGovernance/accessReviews/definitions", select, filter, 50, null, null);
+            var response = await SendGetAsync(url, ct, eventualConsistency: true);
+            if (!response.IsSuccessStatusCode)
+                return [];
+
+            var body = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<GraphAccessReviewDefinition>>(JsonOptions, ct);
+            if (body?.Value == null)
+                return [];
+
+            return body.Value.Select(MapGroupAccessReview).ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    // Private mapping functions for group details
+
+    private static EntraGroupMember MapGroupMember(GraphMemberEntry m) => new()
+    {
+        Id = m.Id ?? string.Empty,
+        DisplayName = m.DisplayName,
+        UserPrincipalName = m.UserPrincipalName,
+        MemberType = m.OdataType?.Contains("user", StringComparison.OrdinalIgnoreCase) == true ? "User"
+            : m.OdataType?.Contains("group", StringComparison.OrdinalIgnoreCase) == true ? "Group"
+            : m.OdataType?.Contains("device", StringComparison.OrdinalIgnoreCase) == true ? "Device"
+            : "ServicePrincipal",
+        CreatedDateTime = m.CreatedDateTime,
+    };
+
+    private static EntraGroupOwner MapGroupOwner(GraphOwnerEntry o) => new()
+    {
+        Id = o.Id ?? string.Empty,
+        DisplayName = o.DisplayName,
+        UserPrincipalName = o.UserPrincipalName,
+        OwnerType = o.OdataType?.Contains("user", StringComparison.OrdinalIgnoreCase) == true ? "User" : "ServicePrincipal",
+    };
+
+    private static EntraGroupApplication MapGroupApplication(GraphAppRoleAssignment a) => new()
+    {
+        Id = a.Id ?? string.Empty,
+        DisplayName = a.PrincipalDisplayName,
+        ResourceId = a.ResourceId,
+        AppRoleId = a.AppRoleId,
+        CreatedDateTime = a.CreatedDateTime,
+    };
+
+    private static EntraGroupDevice MapGroupDevice(GraphDeviceEntry d) => new()
+    {
+        Id = d.Id ?? string.Empty,
+        DisplayName = d.DisplayName,
+        DeviceId = d.DeviceId,
+        OperatingSystem = d.OperatingSystem,
+        OsVersion = d.OsVersion,
+        IsCompliant = d.IsCompliant,
+        IsManaged = d.IsManaged,
+        TrustType = d.TrustType,
+    };
+
+    private static EntraGroupAuditLog MapGroupAuditLog(GraphDirectoryAuditEntry e) => new()
+    {
+        Id = e.Id ?? string.Empty,
+        ActivityDisplayName = e.ActivityDisplayName,
+        Category = e.Category,
+        InitiatedBy = e.InitiatedBy?.User?.DisplayName ?? e.InitiatedBy?.App?.DisplayName,
+        TargetResourceName = e.TargetResources?.FirstOrDefault()?.DisplayName,
+        Result = e.Result,
+        ResultReason = e.ResultReason,
+        ActivityDateTime = e.ActivityDateTime,
+        CorrelationId = e.CorrelationId,
+    };
+
+    private static EntraGroupAccessReview MapGroupAccessReview(GraphAccessReviewDefinition d) => new()
+    {
+        Id = d.Id ?? string.Empty,
+        DisplayName = d.DisplayName,
+        Status = d.Status,
+        StartDate = d.StartDate,
+        EndDate = d.EndDate,
+        ReviewersCount = d.Reviewers?.Count ?? 0,
+    };
+
     public void Dispose() => _httpClient.Dispose();
+
+    public async Task<Result<ServicePrincipalSsoConfig>> GetServicePrincipalSsoConfigAsync(
+        string servicePrincipalId, CancellationToken ct = default)
+    {
+        var spResult = await GetServicePrincipalByIdAsync(servicePrincipalId, null, ct);
+        if (spResult.IsFailure)
+            return spResult.Error!;
+
+        var sp = spResult.Value!;
+        if (string.IsNullOrEmpty(sp.AppId))
+            return Error.NotFound("SsoConfig.NoLinkedApp", "Service principal has no linked application registration.");
+
+        var config = new ServicePrincipalSsoConfig
+        {
+            PreferredSingleSignOnMode = sp.PreferredSingleSignOnMode ?? string.Empty,
+            TenantId = sp.AppOwnerOrganizationId,
+        };
+
+        var appResult = await GetApplicationByAppIdAsync(sp.AppId, ct);
+        if (appResult.IsSuccess)
+        {
+            var app = appResult.Value!;
+            config.SamlMetadataUrl = app.SamlMetadataUrl;
+            config.EntityId = app.IdentifierUris?.FirstOrDefault();
+            config.ReplyUrls = app.RedirectUris;
+            config.SignOnUrl = app.HomePageUrl;
+            config.LogoutUrl = app.LogoutUrls?.FirstOrDefault();
+            config.HomePageUrl = app.HomePageUrl;
+            config.Certificates = app.KeyCredentials
+                .Where(k => k.Type == "AsymmetricX509Cert" || k.Usage == "Verify" || k.Usage == "Sign")
+                .Select(k => new SsoCertificate
+                {
+                    KeyId = k.KeyId,
+                    DisplayName = k.DisplayName,
+                    Thumbprint = k.Thumbprint,
+                    Type = k.Type,
+                    Usage = k.Usage,
+                    StartDateTime = k.StartDateTime,
+                    EndDateTime = k.EndDateTime,
+                })
+                .ToList();
+        }
+
+        var tenantId = sp.AppOwnerOrganizationId ?? sp.Id;
+        config.AuthorizationEndpoint = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize";
+        config.TokenEndpoint = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
+        config.Issuer = $"https://sts.windows.net/{tenantId}/";
+        config.FederationMetadataUrl = $"https://login.microsoftonline.com/{tenantId}/federationmetadata/2007-06/federationmetadata.xml?appid={sp.AppId}";
+        config.LoginUrl = $"https://login.microsoftonline.com/{tenantId}/saml2";
+        config.MicrosoftEntraIdentifier = $"https://sts.windows.net/{tenantId}/";
+
+        return Result.Success(config);
+    }
+
+    private static string? DecodeThumbprint(string? customKeyIdentifier)
+    {
+        if (string.IsNullOrEmpty(customKeyIdentifier))
+            return null;
+        try
+        {
+            var bytes = Convert.FromBase64String(customKeyIdentifier);
+            return Convert.ToHexString(bytes).ToLowerInvariant();
+        }
+        catch
+        {
+            return customKeyIdentifier;
+        }
+    }
 
     private sealed record GraphUser
     {
@@ -1551,6 +1839,13 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public List<string>? Tags { get; init; }
         public string? AppOwnerOrganizationId { get; init; }
         public DateTimeOffset? CreatedDateTime { get; init; }
+        public bool AppRoleAssignmentRequired { get; init; }
+        public string? PreferredSingleSignOnMode { get; init; }
+        public string? AppDescription { get; init; }
+        public List<string>? NotificationEmailAddresses { get; init; }
+        public List<object>? AppRoles { get; init; }
+        public List<object>? KeyCredentials { get; init; }
+        public List<object>? PasswordCredentials { get; init; }
     }
 
     private sealed record GraphApplicationDto
@@ -1702,6 +1997,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public string? Usage { get; init; }
         public DateTimeOffset? StartDateTime { get; init; }
         public DateTimeOffset? EndDateTime { get; init; }
+        public string? CustomKeyIdentifier { get; init; }
     }
 
     private sealed record GraphPasswordCredential
@@ -1724,6 +2020,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public string? PrincipalId { get; init; }
         public string? PrincipalDisplayName { get; init; }
         public string? PrincipalType { get; init; }
+        public string? ResourceId { get; init; }
         public string? AppRoleId { get; init; }
         public string? AppRoleValue { get; init; }
         public DateTimeOffset? CreatedDateTime { get; init; }
@@ -1813,6 +2110,80 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         [JsonPropertyName("id")] public string? Id { get; init; }
         [JsonPropertyName("value")] public string? Value { get; init; }
         [JsonPropertyName("displayName")] public string? DisplayName { get; init; }
+    }
+
+    // Group Details — private DTOs
+
+    private sealed record GraphMemberEntry
+    {
+        [JsonPropertyName("@odata.type")]
+        public string? OdataType { get; init; }
+        public string? Id { get; init; }
+        public string? DisplayName { get; init; }
+        public string? UserPrincipalName { get; init; }
+        public DateTimeOffset? CreatedDateTime { get; init; }
+    }
+
+    private sealed record GraphDeviceEntry
+    {
+        public string? Id { get; init; }
+        public string? DisplayName { get; init; }
+        public string? DeviceId { get; init; }
+        public string? OperatingSystem { get; init; }
+        public string? OsVersion { get; init; }
+        public bool? IsCompliant { get; init; }
+        public bool? IsManaged { get; init; }
+        public string? TrustType { get; init; }
+    }
+
+    private sealed record GraphDirectoryAuditEntry
+    {
+        public string? Id { get; init; }
+        public string? ActivityDisplayName { get; init; }
+        public string? Category { get; init; }
+        public GraphAuditInitiatedBy? InitiatedBy { get; init; }
+        public string? Result { get; init; }
+        public string? ResultReason { get; init; }
+        public DateTimeOffset? ActivityDateTime { get; init; }
+        public string? CorrelationId { get; init; }
+        public List<GraphAuditTargetResource>? TargetResources { get; init; }
+    }
+
+    private sealed record GraphAuditInitiatedBy
+    {
+        public GraphAuditInitiatorActor? User { get; init; }
+        public GraphAuditInitiatorActor? App { get; init; }
+    }
+
+    private sealed record GraphAuditInitiatorActor
+    {
+        public string? Id { get; init; }
+        public string? DisplayName { get; init; }
+        public string? UserPrincipalName { get; init; }
+    }
+
+    private sealed record GraphAuditTargetResource
+    {
+        public string? Id { get; init; }
+        public string? DisplayName { get; init; }
+        public string? Type { get; init; }
+    }
+
+    private sealed record GraphAccessReviewDefinition
+    {
+        public string? Id { get; init; }
+        public string? DisplayName { get; init; }
+        public string? Status { get; init; }
+        public DateTimeOffset? StartDate { get; init; }
+        public DateTimeOffset? EndDate { get; init; }
+        public List<GraphAccessReviewReviewer>? Reviewers { get; init; }
+    }
+
+    private sealed record GraphAccessReviewReviewer
+    {
+        public string? Id { get; init; }
+        public string? DisplayName { get; init; }
+        public string? UserPrincipalName { get; init; }
     }
 }
 
