@@ -18,5 +18,7 @@ public sealed record ListServicePrincipalsResponse
     public string SignInStatus { get; init; } = "Active";
     public int UsersCount { get; init; }
     public DateTimeOffset? LastSignIn { get; init; }
+    public bool AppRoleAssignmentRequired { get; init; }
+    public string? PreferredSingleSignOnMode { get; init; }
 }
 

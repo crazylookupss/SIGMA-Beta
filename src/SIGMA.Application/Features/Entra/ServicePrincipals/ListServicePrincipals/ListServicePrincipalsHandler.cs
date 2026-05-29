@@ -35,7 +35,9 @@ internal sealed class ListServicePrincipalsHandler(IGraphClientService graphClie
                     CreatedDateTime = sp.CreatedDateTime,
                     SignInStatus = sp.SignInStatus,
                     UsersCount = sp.UsersCount,
-                    LastSignIn = sp.LastSignIn
+                    LastSignIn = sp.LastSignIn,
+                    AppRoleAssignmentRequired = sp.AppRoleAssignmentRequired,
+                    PreferredSingleSignOnMode = sp.PreferredSingleSignOnMode
                 })
                 .ToList(),
 

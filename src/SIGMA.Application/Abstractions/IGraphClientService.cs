@@ -74,6 +74,29 @@ public interface IGraphClientService
 
     Task<Result<ServicePrincipalRef>> GetServicePrincipalForApplicationAsync(
         string appId, CancellationToken cancellationToken = default);
+
+    // SSO Configuration
+    Task<Result<ServicePrincipalSsoConfig>> GetServicePrincipalSsoConfigAsync(
+        string servicePrincipalId, CancellationToken cancellationToken = default);
+
+    // Group Details methods
+    Task<List<EntraGroupMember>> GetGroupMembersAsync(
+        string groupId, CancellationToken cancellationToken = default);
+
+    Task<List<EntraGroupOwner>> GetGroupOwnersAsync(
+        string groupId, CancellationToken cancellationToken = default);
+
+    Task<List<EntraGroupApplication>> GetGroupAppRoleAssignmentsAsync(
+        string groupId, CancellationToken cancellationToken = default);
+
+    Task<List<EntraGroupDevice>> GetGroupDevicesAsync(
+        string groupId, CancellationToken cancellationToken = default);
+
+    Task<List<EntraGroupAuditLog>> GetGroupAuditLogsAsync(
+        string groupId, int top = 50, CancellationToken cancellationToken = default);
+
+    Task<List<EntraGroupAccessReview>> GetGroupAccessReviewsAsync(
+        string groupId, CancellationToken cancellationToken = default);
 }
 
 public sealed record AuditLogEntry
@@ -163,6 +186,36 @@ public sealed record CredentialInfo
 
 public sealed record SignInHistoryEntry(DateTimeOffset? CreatedDateTime);
 
+public sealed class ServicePrincipalSsoConfig
+{
+    public string PreferredSingleSignOnMode { get; set; } = string.Empty;
+    public string? SamlMetadataUrl { get; set; }
+    public string? EntityId { get; set; }
+    public List<string> ReplyUrls { get; set; } = [];
+    public string? SignOnUrl { get; set; }
+    public string? LogoutUrl { get; set; }
+    public string? HomePageUrl { get; set; }
+    public List<SsoCertificate> Certificates { get; set; } = [];
+    public string? AuthorizationEndpoint { get; set; }
+    public string? TokenEndpoint { get; set; }
+    public string? Issuer { get; set; }
+    public string? FederationMetadataUrl { get; set; }
+    public string? LoginUrl { get; set; }
+    public string? MicrosoftEntraIdentifier { get; set; }
+    public string? TenantId { get; set; }
+}
+
+public sealed class SsoCertificate
+{
+    public string? KeyId { get; set; }
+    public string? DisplayName { get; set; }
+    public string? Thumbprint { get; set; }
+    public string? Type { get; set; }
+    public string? Usage { get; set; }
+    public DateTimeOffset? StartDateTime { get; set; }
+    public DateTimeOffset? EndDateTime { get; set; }
+}
+
 public sealed record EntraAppAssignment
 {
     public string Id { get; init; } = string.Empty;
@@ -190,6 +243,7 @@ public sealed record EntraApplicationDetails
     public string? SignInAudience { get; init; }
     public string? PublisherDomain { get; init; }
     public List<string> IdentifierUris { get; init; } = [];
+    public List<string> Tags { get; init; } = [];
     public List<string> RedirectUris { get; init; } = [];
     public List<string> LogoutUrls { get; init; } = [];
     public List<EntraAppPermission> RequiredResourceAccess { get; init; } = [];
@@ -201,11 +255,19 @@ public sealed record EntraApplicationDetails
     public string? PrivacyStatementUrl { get; init; }
     public string? SupportUrl { get; init; }
     public string? SamlMetadataUrl { get; init; }
+    public string? TokenEncryptionKeyId { get; init; }
     public string? ApplicationTemplateId { get; init; }
     public string? LogoUrl { get; init; }
     public DateTimeOffset? CreatedDateTime { get; init; }
     public VerifiedPublisherInfo? VerifiedPublisher { get; init; }
     public CertificationInfo? Certification { get; init; }
+    public bool? IsFallbackPublicClient { get; init; }
+    public bool? EnableIdTokenIssuance { get; init; }
+    public bool? EnableAccessTokenIssuance { get; init; }
+    public int? RequestedAccessTokenVersion { get; init; }
+    public bool? AcceptMappedClaims { get; init; }
+    public List<string> Oauth2PermissionScopeValues { get; init; } = [];
+    public List<string> PublicClientRedirectUris { get; init; } = [];
 }
 
 public sealed record EntraAppPermission
@@ -234,6 +296,7 @@ public sealed record EntraKeyCredential
     public string? Usage { get; init; }
     public DateTimeOffset? StartDateTime { get; init; }
     public DateTimeOffset? EndDateTime { get; init; }
+    public string? Thumbprint { get; init; }
 }
 
 public sealed record EntraPasswordCredential

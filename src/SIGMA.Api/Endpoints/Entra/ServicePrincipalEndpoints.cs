@@ -1,7 +1,9 @@
 using SIGMA.Application.Abstractions;
 using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipal;
+using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipalSsoConfig;
 using SIGMA.Application.Features.Entra.ServicePrincipals.ListServicePrincipals;
 using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipalDashboard;
+using SIGMA.Application.Features.ProtocolAnalysis.Queries.GetProtocolAnalysis;
 using SIGMA.Domain.Common;
 
 namespace SIGMA.Api.Endpoints.Entra;
@@ -94,6 +96,32 @@ internal static class ServicePrincipalEndpoints
         .WithTags("Entra Service Principals")
         .WithSummary("Get owners of a service principal")
         .WithDescription("Returns the owners of this enterprise application.");
+
+        group.MapGet("/service-principals/{id}/sso-config", async (
+            string id,
+            IQueryDispatcher dispatcher,
+            CancellationToken ct) =>
+        {
+            var result = await dispatcher.Send(new GetServicePrincipalSsoConfigQuery(id), ct);
+            return ToResult(result);
+        })
+        .WithName("GetServicePrincipalSsoConfig")
+        .WithTags("Entra Service Principals")
+        .WithSummary("Get SSO configuration for a service principal")
+        .WithDescription("Returns SAML/OIDC configuration including metadata URLs, certificates, reply URLs, and tenant endpoints for the linked application registration.");
+
+        group.MapGet("/service-principals/{id}/protocol-analysis", async (
+            string id,
+            IQueryDispatcher dispatcher,
+            CancellationToken ct) =>
+        {
+            var result = await dispatcher.Send(new GetProtocolAnalysisQuery(id), ct);
+            return ToResult(result);
+        })
+        .WithName("GetServicePrincipalProtocolAnalysis")
+        .WithTags("Entra Service Principals")
+        .WithSummary("Detect SSO/federation protocols for a service principal")
+        .WithDescription("Performs weighted evidence-based protocol analysis to detect supported SSO protocols (SAML, OIDC, OAuth 2.0, WS-Federation, Header-Based, Password SSO, Linked Sign-On, SCIM Provisioning) with confidence scoring.");
 
         group.MapGet("/service-principals/{id}/signins", async (
             string id,

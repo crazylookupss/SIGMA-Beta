@@ -1,5 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using SIGMA.Application.Abstractions;
+using SIGMA.Application.Features.ProtocolAnalysis.Abstractions;
+using SIGMA.Application.Features.ProtocolAnalysis.Detectors;
+using SIGMA.Application.Features.ProtocolAnalysis.Engine;
 
 namespace SIGMA.Application;
 
@@ -25,6 +28,24 @@ public static class DependencyInjection
                 services.AddScoped(iface, handler);
             }
         }
+
+        services.AddProtocolAnalysis();
+
+        return services;
+    }
+
+    private static IServiceCollection AddProtocolAnalysis(this IServiceCollection services)
+    {
+        services.AddScoped<IProtocolDetector, SamlProtocolDetector>();
+        services.AddScoped<IProtocolDetector, OidcProtocolDetector>();
+        services.AddScoped<IProtocolDetector, OAuth2ProtocolDetector>();
+        services.AddScoped<IProtocolDetector, WsFedProtocolDetector>();
+        services.AddScoped<IProtocolDetector, HeaderBasedDetector>();
+        services.AddScoped<IProtocolDetector, PasswordSsoDetector>();
+        services.AddScoped<IProtocolDetector, LinkedSignOnDetector>();
+        services.AddScoped<IProtocolDetector, ScimProvisioningDetector>();
+
+        services.AddScoped<IProtocolAnalysisEngine, ProtocolAnalysisEngine>();
 
         return services;
     }
