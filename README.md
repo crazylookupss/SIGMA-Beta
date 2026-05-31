@@ -1,20 +1,20 @@
-# SIGMA
+# SIGMA API
 
 > **S**ecure **I**dentity **G**ateway & **M**anagement **A**PI
 >
-> Enterprise-grade wrapper API for IAM, IGA, and ITSM platforms.
+> Enterprise-grade identity gateway API for IAM, IGA, and ITSM platforms.
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
-![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Status](https://img.shields.io/badge/status-development-yellow)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen)
+[![CI](https://github.com/crazylookupss/SIGMA-Beta/actions/workflows/ci.yml/badge.svg)](https://github.com/crazylookupss/SIGMA-Beta/actions/workflows/ci.yml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Security Policy](https://img.shields.io/badge/security-policy-red.svg)](SECURITY.md)
 
 ---
 
 ## Overview
 
-SIGMA is an **enterprise identity gateway** that provides a consistent REST interface across identity platforms. It uses a **Two-App Registration** security model with **Microsoft.Identity.Web** for JWT validation, **Microsoft Graph** for directory data, and a custom **CQRS** architecture.
+SIGMA API is an **enterprise identity gateway** that provides a consistent REST interface across identity platforms. It uses a **Two-App Registration** security model with **Microsoft.Identity.Web** for JWT validation, **Microsoft Graph** for directory data, and a custom **CQRS** architecture.
 
 **Phase 1** targets Microsoft Entra ID (read-only, visibility-first):
 
@@ -44,27 +44,31 @@ SIGMA is an **enterprise identity gateway** that provides a consistent REST inte
 | **App Registrations** | `GET /api/v1/entra/applications/{id}/audit-logs` | Recent directory audit and sign-in logs |
 | **App Registrations** | `GET /api/v1/entra/applications/{id}/manifest` | Raw JSON application manifest |
 | **App Registrations** | `GET /api/v1/entra/applications/{id}/service-principal-ref` | Primary linked enterprise application reference |
+| **Governance** | `GET /api/v1/governance/findings` | All governance findings |
+| **Governance** | `GET /api/v1/governance/findings/summary` | Summary counts by severity |
+| **Governance** | `GET /api/v1/governance/findings/category/{category}` | Findings filtered by category |
+| **Governance** | `GET /api/v1/governance/findings/severity/{severity}` | Findings filtered by severity |
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌────────────────┐     ┌──────────┐
-│  SIGMA.Api  │────▶│  Application │────▶│ Infrastructure │────▶│  Domain  │
-│ (Endpoints) │     │   (CQRS)     │     │   (Graph API)  │     │(Entities)│
-└─────────────┘     └──────────────┘     └────────────────┘     └──────────┘
-       │                                                      
-       │ Microsoft.Identity.Web (JWT validation)
-       ▼
-┌──────────────────────────────────────────────────────────────────┐
-│ Inbound: DelegatedUserPolicy (access_as_user + oid)              │
-│ Outbound: ClientSecretCredential → Microsoft Graph               │
-│ Two-App Registration: API App (graph perms) + Client App (user) │
-└──────────────────────────────────────────────────────────────────┘
++-------------+     +--------------+     +----------------+     +----------+
+|  SIGMA.Api  |---->|  Application |---->| Infrastructure |---->|  Domain  |
+| (Endpoints) |     |   (CQRS)     |     |   (Graph API)  |     |(Entities)|
++-------------+     +--------------+     +----------------+     +----------+
+       |
+       | Microsoft.Identity.Web (JWT validation)
+       v
++----------------------------------------------------------------------+
+| Inbound: DelegatedUserPolicy (access_as_user + oid)                  |
+| Outbound: ClientSecretCredential -> Microsoft Graph                  |
+| Two-App Registration: API App (graph perms) + Client App (user)      |
++----------------------------------------------------------------------+
 ```
 
-- **Clean Architecture** with 4 layers (Domain → Application → Infrastructure → Api)
+- **Clean Architecture** with 4 layers (Domain -> Application -> Infrastructure -> Api)
 - **Custom CQRS** without MediatR (no licensing risk)
 - **Result pattern** with typed errors mapping to HTTP status codes
 - **Microsoft.Identity.Web** for JWT Bearer validation
@@ -84,8 +88,8 @@ SIGMA is an **enterprise identity gateway** that provides a consistent REST inte
 
 ```bash
 # Clone and restore
-git clone <repo-url>
-cd SIGMA
+git clone https://github.com/crazylookupss/SIGMA-Beta.git
+cd SIGMA-Beta
 dotnet restore
 
 # Configure Entra credentials (user-secrets for development)
@@ -106,6 +110,12 @@ dotnet run --project src/SIGMA.Api
 ```bash
 curl http://localhost:5107/api/v1/health
 # {"status":"healthy","timestamp":"2026-05-24T12:00:00Z"}
+```
+
+### Docker
+
+```bash
+docker compose up --build
 ```
 
 ---
@@ -141,7 +151,7 @@ SIGMA uses a **Two-App Registration** model (see [full authentication docs](docs
 ## Project Structure
 
 ```
-SIGMA/
+SIGMA-Beta/
 ├── src/
 │   ├── SIGMA.Api/              # Minimal API endpoints, middleware, auth
 │   ├── SIGMA.Application/      # CQRS handlers, queries, responses
@@ -150,13 +160,22 @@ SIGMA/
 ├── docs/
 │   ├── architecture.md
 │   ├── api-reference.md
-│   ├── authentication.md       # ↳ Two-App Registration model
+│   ├── authentication.md       # -> Two-App Registration model
 │   ├── deployment.md
 │   ├── providers.md
 │   └── development.md
-├── .github/workflows/          # CI/CD pipelines (future)
+├── .github/
+│   ├── workflows/ci.yml        # CI pipeline
+│   ├── ISSUE_TEMPLATE/         # Bug report & feature request
+│   └── PULL_REQUEST_TEMPLATE.md
+├── Dockerfile
+├── docker-compose.yml
 ├── .gitignore
 ├── SIGMA.slnx
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md
+├── LICENSE
 └── README.md
 ```
 
@@ -175,12 +194,20 @@ SIGMA/
 
 ---
 
+## Related Projects
+
+| Project | Description |
+|---------|-------------|
+| [SIGMA Web Client](https://github.com/crazylookupss/sigma-next) | Next.js 16 admin dashboard for SIGMA API |
+
+---
+
 ## Branching Strategy
 
-**GitHub Flow** — `main` (protected) + short-lived `feature/*` branches merged via squash PRs.
+**GitHub Flow** -- `main` (protected) + short-lived `feature/*` branches merged via squash PRs.
 
 ```
-main ──────●─────────●─────────●─────────●
+main ------+---------+---------+---------+
              \       / \       / \       /
               feature/  feature/  fix/
               users     groups    pagination
@@ -192,11 +219,11 @@ main ──────●─────────●────────
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1** | Microsoft Entra ID (Users, Groups, Service Principals, App Registrations) | ✅ Complete |
-| **2** | Okta provider | 📋 Planned |
-| **3** | ServiceNow / ITSM providers | 📋 Planned |
-| **4** | Aggregated search across providers | 🔮 Future |
-| **5** | Write operations with approval workflows + SensitiveSelfServicePolicy | 🔮 Future |
+| **1** | Microsoft Entra ID (Users, Groups, Service Principals, App Registrations) | Complete |
+| **2** | Okta provider | Planned |
+| **3** | ServiceNow / ITSM providers | Planned |
+| **4** | Aggregated search across providers | Future |
+| **5** | Write operations with approval workflows | Future |
 
 ---
 
