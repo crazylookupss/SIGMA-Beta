@@ -5,6 +5,8 @@ namespace SIGMA.Application.Features.ProtocolAnalysis.Detectors;
 
 internal sealed class OAuth2ProtocolDetector : IProtocolDetector
 {
+    private const int MaxPossibleScore = 85;
+
     public AuthenticationProtocol Protocol => AuthenticationProtocol.OAuth2;
 
     public Task<ProtocolDetection> DetectAsync(DetectionData data, CancellationToken ct = default)
@@ -109,21 +111,38 @@ internal sealed class OAuth2ProtocolDetector : IProtocolDetector
             score += 10;
         }
 
-        // Low: has web redirect URIs (generic web app)
-        if (data.RedirectUris.Count > 0)
+        // FIX: Only count generic redirect URIs if no specific redirect type was already counted
+        // This prevents double-counting with non-HTTP or HTTP(S) checks above
+        if (data.RedirectUris.Count > 0 && nonHttpRedirects.Count == 0)
         {
             evidence.Add(new ProtocolEvidence
             {
                 Source = "Application",
                 Field = "RedirectUris",
                 Weight = 5,
-                Description = "Has web redirect URIs configured",
+                Description = "Has web redirect URIs configured (generic OAuth2 pattern)",
                 Category = "RedirectUri"
             });
             score += 5;
         }
 
-        var confidence = score switch
+        // NEW: KnownClientApplications present (backend client linking)
+        if (data.KnownClientApplicationsCount > 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "KnownClientApplications",
+                Weight = 5,
+                Description = $"{data.KnownClientApplicationsCount} known client application(s) linked (OAuth2 backend pattern)",
+                Category = "OAuth2Configuration"
+            });
+            score += 5;
+        }
+
+        // Confidence based on normalized score
+        var normalizedScore = MaxPossibleScore > 0 ? (double)score / MaxPossibleScore * 100 : 0;
+        var confidence = normalizedScore switch
         {
             >= 30 => ProtocolConfidence.High,
             >= 15 => ProtocolConfidence.Medium,
@@ -135,7 +154,8 @@ internal sealed class OAuth2ProtocolDetector : IProtocolDetector
         {
             Protocol = AuthenticationProtocol.OAuth2,
             Confidence = confidence,
-            Score = score,
+            Score = Math.Max(score, 0),
+            MaxPossibleScore = MaxPossibleScore,
             Evidence = evidence
         });
     }

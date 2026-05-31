@@ -9,14 +9,15 @@ internal sealed class GetServicePrincipalDashboardHandler(IGraphClientService gr
     public async Task<Result<GetServicePrincipalDashboardResponse>> Handle(
         GetServicePrincipalDashboardQuery query, CancellationToken cancellationToken)
     {
-        // Fetch all enterprise-app service principals with enrichment from Microsoft Graph
-        // The GraphClientService now applies the correct enterprise app filter
-        // (tags/Any(x: x eq 'WindowsAzureActiveDirectoryIntegratedApp')) and follows pagination
-        // to ensure ALL enterprise applications are returned, matching Entra Admin Center counts.
-        var result = await graphClient.GetServicePrincipalsAsync(
-            select: null, filter: null, top: null, skip: null, count: null,
+        // Fetch SPs and sign-in history in parallel (independent calls)
+        var resultTask = graphClient.GetServicePrincipalsAsync(
+            select: null, filter: null, top: 999, skip: null, count: null,
             cancellationToken: cancellationToken);
+        var signInTask = graphClient.GetSignInHistoryAsync(30, cancellationToken);
 
+        await Task.WhenAll(resultTask, signInTask);
+
+        var result = resultTask.Result;
         if (result.IsFailure)
             return result.Error!;
 
@@ -38,7 +39,7 @@ internal sealed class GetServicePrincipalDashboardHandler(IGraphClientService gr
         };
 
         // Sign-in history line chart data (requires Microsoft Entra ID P1/P2 license)
-        var signInEntries = await graphClient.GetSignInHistoryAsync(30, cancellationToken);
+        var signInEntries = signInTask.Result;
         var signInsHistory = signInEntries
             .Where(s => s.CreatedDateTime.HasValue)
             .GroupBy(s => s.CreatedDateTime!.Value.Date)

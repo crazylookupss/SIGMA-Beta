@@ -51,9 +51,13 @@ public sealed record ListApplicationsCertification(
 public sealed record ListApplicationsApi(
     int? RequestedAccessTokenVersion,
     bool? AcceptMappedClaims,
-    List<object> KnownClientApplications,
+    List<string> KnownClientApplications,
     List<object> Oauth2PermissionScopes,
-    List<object> PreAuthorizedApplications);
+    List<ListApplicationsPreAuthorizedApp> PreAuthorizedApplications);
+
+public sealed record ListApplicationsPreAuthorizedApp(
+    string? AppId,
+    List<string> PermissionScopes);
 
 public sealed record ListApplicationsPublicClient(
     List<string> RedirectUris);

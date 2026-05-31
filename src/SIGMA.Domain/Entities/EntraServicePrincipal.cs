@@ -29,5 +29,11 @@ public sealed record EntraServicePrincipal
     public List<object> PasswordCredentials { get; init; } = [];
     public int? AssignedUserCount { get; init; }
     public int? AssignedGroupCount { get; init; }
+
+    // SSO protocol analysis fields
+    public string? CustomSingleSignOnUrl { get; init; }
+    public List<string> ServicePrincipalNames { get; init; } = [];
+    public string? LoginUrl { get; init; }
+    public string? PreferredTokenSigningKeyThumbprint { get; init; }
 }
 

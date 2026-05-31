@@ -12,14 +12,14 @@ internal sealed class ProtocolAnalysisEngine : IProtocolAnalysisEngine
         _detectors = detectors;
     }
 
-    public Task<ProtocolAnalysisResult> AnalyzeAsync(DetectionData data, CancellationToken ct = default)
+    public async Task<ProtocolAnalysisResult> AnalyzeAsync(DetectionData data, CancellationToken ct = default)
     {
         var detections = new List<ProtocolDetection>();
         var allEvidence = new List<ProtocolEvidence>();
 
         foreach (var detector in _detectors)
         {
-            var detection = detector.DetectAsync(data, ct).GetAwaiter().GetResult();
+            var detection = await detector.DetectAsync(data, ct);
             if (detection.IsDetected)
             {
                 detections.Add(detection);
@@ -27,7 +27,8 @@ internal sealed class ProtocolAnalysisEngine : IProtocolAnalysisEngine
             }
         }
 
-        detections = [.. detections.OrderByDescending(d => d.Score)];
+        // Sort by NORMALIZED score (0-100) for fair comparison across protocols
+        detections = [.. detections.OrderByDescending(d => d.NormalizedScore)];
 
         var primaryProtocol = detections.Count > 0
             ? detections[0].Protocol
@@ -35,7 +36,7 @@ internal sealed class ProtocolAnalysisEngine : IProtocolAnalysisEngine
 
         var insights = BuildGovernanceInsights(detections, data);
 
-        return Task.FromResult(new ProtocolAnalysisResult
+        return new ProtocolAnalysisResult
         {
             PrimaryProtocol = primaryProtocol,
             DetectedProtocols = detections,
@@ -44,7 +45,7 @@ internal sealed class ProtocolAnalysisEngine : IProtocolAnalysisEngine
             AnalysisTimestamp = DateTimeOffset.UtcNow,
             ServicePrincipalId = data.ServicePrincipalId,
             ServicePrincipalDisplayName = data.DisplayName,
-        });
+        };
     }
 
     private static List<GovernanceInsight> BuildGovernanceInsights(
@@ -56,8 +57,8 @@ internal sealed class ProtocolAnalysisEngine : IProtocolAnalysisEngine
         {
             insights.Add(new GovernanceInsight
             {
-                Severity = "Warning",
-                Category = "NoProtocol",
+                Severity = GovernanceSeverity.Warning,
+                Category = GovernanceCategory.Configuration,
                 Message = "No supported SSO protocol could be detected. This application may be using a custom authentication method or client credentials flow."
             });
 
@@ -65,32 +66,48 @@ internal sealed class ProtocolAnalysisEngine : IProtocolAnalysisEngine
             {
                 insights.Add(new GovernanceInsight
                 {
-                    Severity = "Info",
-                    Category = "MissingConfiguration",
+                    Severity = GovernanceSeverity.Info,
+                    Category = GovernanceCategory.Configuration,
                     Message = "The 'preferredSingleSignOnMode' field is not set on the service principal. Consider configuring SSO through the Entra admin center."
                 });
             }
         }
-        else if (detections.Count > 1)
+        else
         {
-            var primary = detections[0].Protocol;
-            var others = string.Join(", ", detections.Skip(1).Select(d => d.Protocol));
-            insights.Add(new GovernanceInsight
-            {
-                Severity = "Info",
-                Category = "MultipleProtocols",
-                Message = $"Multiple authentication protocols detected. Primary: {primary}. Also detected: {others}."
-            });
-
-            if (detections.Any(d => d.Confidence == ProtocolConfidence.High) &&
-                detections.Count(d => d.Confidence == ProtocolConfidence.High) > 1)
+            // Check for weak protocols
+            var weakProtocols = new[] { AuthenticationProtocol.PasswordBased, AuthenticationProtocol.LinkedSignOn };
+            if (weakProtocols.Contains(detections[0].Protocol))
             {
                 insights.Add(new GovernanceInsight
                 {
-                    Severity = "Warning",
-                    Category = "AmbiguousProtocol",
-                    Message = "Multiple protocols have high confidence scores. Review the evidence list to determine the intended SSO method."
+                    Severity = GovernanceSeverity.Warning,
+                    Category = GovernanceCategory.Protocol,
+                    Message = $"Primary protocol is {detections[0].Protocol}, which has weaker security posture. Consider migrating to SAML or OIDC."
                 });
+            }
+
+            // Multiple protocols detected
+            if (detections.Count > 1)
+            {
+                var primary = detections[0].Protocol;
+                var others = string.Join(", ", detections.Skip(1).Select(d => d.Protocol));
+                insights.Add(new GovernanceInsight
+                {
+                    Severity = GovernanceSeverity.Info,
+                    Category = GovernanceCategory.Protocol,
+                    Message = $"Multiple authentication protocols detected. Primary: {primary}. Also detected: {others}."
+                });
+
+                if (detections.Any(d => d.Confidence == ProtocolConfidence.High) &&
+                    detections.Count(d => d.Confidence == ProtocolConfidence.High) > 1)
+                {
+                    insights.Add(new GovernanceInsight
+                    {
+                        Severity = GovernanceSeverity.Warning,
+                        Category = GovernanceCategory.Configuration,
+                        Message = "Multiple protocols have high confidence scores. Review the evidence list to determine the intended SSO method."
+                    });
+                }
             }
         }
 

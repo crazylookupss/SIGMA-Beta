@@ -34,6 +34,9 @@ public sealed record EntraApplication
     public List<object> PasswordCredentials { get; init; } = [];
     public List<object> RequiredResourceAccess { get; init; } = [];
     public WebApplicationDto? Web { get; init; }
+ 
+    // Enriched properties for governance analysis
+    public int? OwnersCount { get; init; }
 }
 
 public sealed record VerifiedPublisherDto(
@@ -51,9 +54,13 @@ public sealed record CertificationDto(
 public sealed record ApiApplicationDto(
     int? RequestedAccessTokenVersion,
     bool? AcceptMappedClaims,
-    List<object> KnownClientApplications,
+    List<string> KnownClientApplications,
     List<object> Oauth2PermissionScopes,
-    List<object> PreAuthorizedApplications);
+    List<PreAuthorizedAppDto> PreAuthorizedApplications);
+
+public sealed record PreAuthorizedAppDto(
+    string? AppId,
+    List<string> PermissionScopes);
 
 public sealed record PublicClientApplicationDto(
     List<string> RedirectUris);

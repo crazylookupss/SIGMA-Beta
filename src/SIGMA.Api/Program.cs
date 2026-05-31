@@ -71,7 +71,17 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddHttpClient();
+
+// Configure Minimal APIs to serialize Enums as strings (e.g. "Critical" instead of 0)
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
+
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 
 builder.Services.AddCors(options =>
 {
@@ -138,6 +148,7 @@ if (builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseResponseCompression();
 
 if (app.Environment.IsDevelopment())
 {
@@ -174,6 +185,9 @@ entra.MapUserEndpoints();
 entra.MapGroupEndpoints();
 entra.MapServicePrincipalEndpoints();
 entra.MapApplicationEndpoints();
+
+var governance = api.MapGroup("").RequireAuthorization("DelegatedUserPolicy");
+governance.MapGovernanceEndpoints();
 
 app.MapHub<SigmaHub>("/hubs/sigma");
 

@@ -5,6 +5,8 @@ namespace SIGMA.Application.Features.ProtocolAnalysis.Detectors;
 
 internal sealed class WsFedProtocolDetector : IProtocolDetector
 {
+    private const int MaxPossibleScore = 70;
+
     public AuthenticationProtocol Protocol => AuthenticationProtocol.WsFed;
 
     public Task<ProtocolDetection> DetectAsync(DetectionData data, CancellationToken ct = default)
@@ -114,7 +116,8 @@ internal sealed class WsFedProtocolDetector : IProtocolDetector
         {
             Protocol = AuthenticationProtocol.WsFed,
             Confidence = confidence,
-            Score = score,
+            Score = Math.Max(score, 0),
+            MaxPossibleScore = MaxPossibleScore,
             Evidence = evidence
         });
     }
