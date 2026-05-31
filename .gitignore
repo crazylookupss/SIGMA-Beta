@@ -16,6 +16,7 @@ packages/
 *.swp
 
 # Secrets
+appsettings.json
 appsettings.Development.json
 user-secrets.json
 

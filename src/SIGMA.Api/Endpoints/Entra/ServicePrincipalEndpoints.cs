@@ -1,6 +1,7 @@
 using SIGMA.Application.Abstractions;
 using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipal;
 using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipalSsoConfig;
+using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipalProxyConfig;
 using SIGMA.Application.Features.Entra.ServicePrincipals.ListServicePrincipals;
 using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipalDashboard;
 using SIGMA.Application.Features.ProtocolAnalysis.Queries.GetProtocolAnalysis;
@@ -109,6 +110,19 @@ internal static class ServicePrincipalEndpoints
         .WithTags("Entra Service Principals")
         .WithSummary("Get SSO configuration for a service principal")
         .WithDescription("Returns SAML/OIDC configuration including metadata URLs, certificates, reply URLs, and tenant endpoints for the linked application registration.");
+
+        group.MapGet("/service-principals/{id}/proxy-configuration", async (
+            string id,
+            IQueryDispatcher dispatcher,
+            CancellationToken ct) =>
+        {
+            var result = await dispatcher.Send(new GetServicePrincipalProxyConfigQuery(id), ct);
+            return ToResult(result);
+        })
+        .WithName("GetServicePrincipalProxyConfiguration")
+        .WithTags("Entra Service Principals")
+        .WithSummary("Get Application Proxy configuration for a service principal")
+        .WithDescription("Returns proxy tunnel status, internal/external URLs, pre-authentication settings, and URL translation configuration.");
 
         group.MapGet("/service-principals/{id}/protocol-analysis", async (
             string id,

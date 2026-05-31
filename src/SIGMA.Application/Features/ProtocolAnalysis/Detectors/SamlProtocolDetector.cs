@@ -5,6 +5,8 @@ namespace SIGMA.Application.Features.ProtocolAnalysis.Detectors;
 
 internal sealed class SamlProtocolDetector : IProtocolDetector
 {
+    private const int MaxPossibleScore = 130;
+
     public AuthenticationProtocol Protocol => AuthenticationProtocol.Saml;
 
     public Task<ProtocolDetection> DetectAsync(DetectionData data, CancellationToken ct = default)
@@ -158,7 +160,71 @@ internal sealed class SamlProtocolDetector : IProtocolDetector
             score += 5;
         }
 
-        var confidence = score switch
+        // NEW: ServicePrincipalNames present (SAML Entity ID identification)
+        if (data.ServicePrincipalNames.Count > 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "ServicePrincipal",
+                Field = "ServicePrincipalNames",
+                Value = string.Join("; ", data.ServicePrincipalNames),
+                Weight = 5,
+                Description = "Service principal has configured names (useful for SAML Entity ID)",
+                Category = "SamlConfiguration"
+            });
+            score += 5;
+        }
+
+        // NEW: PreferredTokenSigningKeyThumbprint present
+        if (!string.IsNullOrEmpty(data.PreferredTokenSigningKeyThumbprint))
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "ServicePrincipal",
+                Field = "PreferredTokenSigningKeyThumbprint",
+                Value = data.PreferredTokenSigningKeyThumbprint,
+                Weight = 5,
+                Description = "Preferred token signing key is configured",
+                Category = "SamlConfiguration"
+            });
+            score += 5;
+        }
+
+        // NEW: Certificate expiry penalty
+        var now = DateTimeOffset.UtcNow;
+        var expiredCerts = data.KeyCredentials.Where(k =>
+            k.EndDateTime.HasValue && k.EndDateTime.Value < now).ToList();
+        if (expiredCerts.Count > 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "KeyCredentials",
+                Weight = -20,
+                Description = $"{expiredCerts.Count} certificate(s) are expired - critical security issue",
+                Category = "CertificateHealth"
+            });
+            score -= 20;
+        }
+
+        var expiringCerts = data.KeyCredentials.Where(k =>
+            k.EndDateTime.HasValue && k.EndDateTime.Value >= now && k.EndDateTime.Value < now.AddDays(30)).ToList();
+        if (expiringCerts.Count > 0 && expiredCerts.Count == 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "KeyCredentials",
+                Weight = -10,
+                Description = $"{expiringCerts.Count} certificate(s) expiring within 30 days",
+                Category = "CertificateHealth"
+            });
+            score -= 10;
+        }
+
+        // Confidence based on normalized score (0-100)
+        var normalizedScore = MaxPossibleScore > 0 ? (double)score / MaxPossibleScore * 100 : 0;
+        var confidence = normalizedScore switch
         {
             >= 35 => ProtocolConfidence.High,
             >= 20 => ProtocolConfidence.Medium,
@@ -170,7 +236,8 @@ internal sealed class SamlProtocolDetector : IProtocolDetector
         {
             Protocol = AuthenticationProtocol.Saml,
             Confidence = confidence,
-            Score = score,
+            Score = Math.Max(score, 0),
+            MaxPossibleScore = MaxPossibleScore,
             Evidence = evidence
         });
     }

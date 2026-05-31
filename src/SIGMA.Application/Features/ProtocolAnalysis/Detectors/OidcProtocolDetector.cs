@@ -5,6 +5,8 @@ namespace SIGMA.Application.Features.ProtocolAnalysis.Detectors;
 
 internal sealed class OidcProtocolDetector : IProtocolDetector
 {
+    private const int MaxPossibleScore = 135;
+
     public AuthenticationProtocol Protocol => AuthenticationProtocol.OpenIdConnect;
 
     public Task<ProtocolDetection> DetectAsync(DetectionData data, CancellationToken ct = default)
@@ -136,7 +138,67 @@ internal sealed class OidcProtocolDetector : IProtocolDetector
             score += 5;
         }
 
-        var confidence = score switch
+        // NEW: GroupMembershipClaims present (OIDC token configuration)
+        if (!string.IsNullOrEmpty(data.GroupMembershipClaims))
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "GroupMembershipClaims",
+                Value = data.GroupMembershipClaims,
+                Weight = 5,
+                Description = "Group membership claims configured in token settings (OIDC-specific)",
+                Category = "OidcConfiguration"
+            });
+            score += 5;
+        }
+
+        // NEW: OptionalClaims present (OIDC custom claims)
+        if (data.OptionalClaims is not null)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "OptionalClaims",
+                Weight = 5,
+                Description = "Optional claims configured in token settings (OIDC-specific)",
+                Category = "OidcConfiguration"
+            });
+            score += 5;
+        }
+
+        // NEW: PreAuthorizedApplications present (OIDC pre-auth)
+        if (data.PreAuthorizedApplicationsCount > 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "PreAuthorizedApplications",
+                Weight = 5,
+                Description = $"{data.PreAuthorizedApplicationsCount} pre-authorized application(s) configured (OIDC pattern)",
+                Category = "OidcConfiguration"
+            });
+            score += 5;
+        }
+
+        // NEW: LogoutUrl present (post-logout redirect)
+        if (!string.IsNullOrEmpty(data.LogoutUrl))
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "LogoutUrl",
+                Value = data.LogoutUrl,
+                Weight = 5,
+                Description = "Logout URL configured (post-logout redirect, typical for OIDC)",
+                Category = "OidcConfiguration"
+            });
+            score += 5;
+        }
+
+        // Confidence based on normalized score
+        var normalizedScore = MaxPossibleScore > 0 ? (double)score / MaxPossibleScore * 100 : 0;
+        var confidence = normalizedScore switch
         {
             >= 35 => ProtocolConfidence.High,
             >= 20 => ProtocolConfidence.Medium,
@@ -148,7 +210,8 @@ internal sealed class OidcProtocolDetector : IProtocolDetector
         {
             Protocol = AuthenticationProtocol.OpenIdConnect,
             Confidence = confidence,
-            Score = score,
+            Score = Math.Max(score, 0),
+            MaxPossibleScore = MaxPossibleScore,
             Evidence = evidence
         });
     }

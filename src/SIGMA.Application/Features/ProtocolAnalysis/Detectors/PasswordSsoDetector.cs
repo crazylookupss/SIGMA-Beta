@@ -5,6 +5,8 @@ namespace SIGMA.Application.Features.ProtocolAnalysis.Detectors;
 
 internal sealed class PasswordSsoDetector : IProtocolDetector
 {
+    private const int MaxPossibleScore = 85;
+
     public AuthenticationProtocol Protocol => AuthenticationProtocol.PasswordBased;
 
     public Task<ProtocolDetection> DetectAsync(DetectionData data, CancellationToken ct = default)
@@ -27,7 +29,36 @@ internal sealed class PasswordSsoDetector : IProtocolDetector
             score += 30;
         }
 
-        // Low: Notification emails (commonly configured for password SSO)
+        // NEW (Strong): CustomSingleSignOnUrl present — password vault URL
+        if (!string.IsNullOrEmpty(data.CustomSingleSignOnUrl))
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "ServicePrincipal",
+                Field = "CustomSingleSignOnUrl",
+                Value = data.CustomSingleSignOnUrl,
+                Weight = 20,
+                Description = "Custom sign-on URL configured for password vault SSO",
+                Category = "PasswordConfiguration"
+            });
+            score += 20;
+        }
+
+        // NEW (Strong): PasswordCredentials present — password vault has credentials
+        if (data.PasswordCredentials.Count > 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "PasswordCredentials",
+                Weight = 15,
+                Description = $"{data.PasswordCredentials.Count} password credential(s) configured in password vault",
+                Category = "PasswordConfiguration"
+            });
+            score += 15;
+        }
+
+        // Medium: Notification emails (commonly configured for password SSO)
         if (data.NotificationEmailAddresses.Count > 0 && score > 0)
         {
             evidence.Add(new ProtocolEvidence
@@ -56,7 +87,27 @@ internal sealed class PasswordSsoDetector : IProtocolDetector
             score += 5;
         }
 
-        var confidence = score switch
+        // NEW: No SAML/OIDC indicators (negative evidence)
+        var hasSamlIndicators = !string.IsNullOrEmpty(data.SamlMetadataUrl) ||
+            data.KeyCredentials.Any(k => k.Type == "AsymmetricX509Cert");
+        var hasOidcIndicators = data.EnableIdTokenIssuance == true ||
+            data.RedirectUris.Any(u => u.StartsWith("http"));
+        if (!hasSamlIndicators && !hasOidcIndicators && score > 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "SamlMetadataUrl",
+                Weight = 10,
+                Description = "No SAML or OIDC configuration indicators found (supports password-based classification)",
+                Category = "NegativeEvidence"
+            });
+            score += 10;
+        }
+
+        // Confidence based on normalized score
+        var normalizedScore = MaxPossibleScore > 0 ? (double)score / MaxPossibleScore * 100 : 0;
+        var confidence = normalizedScore switch
         {
             >= 30 => ProtocolConfidence.High,
             >= 15 => ProtocolConfidence.Medium,
@@ -68,7 +119,8 @@ internal sealed class PasswordSsoDetector : IProtocolDetector
         {
             Protocol = AuthenticationProtocol.PasswordBased,
             Confidence = confidence,
-            Score = score,
+            Score = Math.Max(score, 0),
+            MaxPossibleScore = MaxPossibleScore,
             Evidence = evidence
         });
     }

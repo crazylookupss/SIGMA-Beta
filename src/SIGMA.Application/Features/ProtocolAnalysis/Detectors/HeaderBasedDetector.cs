@@ -5,6 +5,8 @@ namespace SIGMA.Application.Features.ProtocolAnalysis.Detectors;
 
 internal sealed class HeaderBasedDetector : IProtocolDetector
 {
+    private const int MaxPossibleScore = 90;
+
     public AuthenticationProtocol Protocol => AuthenticationProtocol.HeaderBased;
 
     public Task<ProtocolDetection> DetectAsync(DetectionData data, CancellationToken ct = default)
@@ -28,6 +30,21 @@ internal sealed class HeaderBasedDetector : IProtocolDetector
             score += 30;
         }
 
+        // NEW (Critical): CustomSingleSignOnUrl present — THE primary signal for header-based
+        if (!string.IsNullOrEmpty(data.CustomSingleSignOnUrl))
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "ServicePrincipal",
+                Field = "CustomSingleSignOnUrl",
+                Value = data.CustomSingleSignOnUrl,
+                Weight = 25,
+                Description = "Custom sign-on URL configured for header-based SSO",
+                Category = "HeaderConfiguration"
+            });
+            score += 25;
+        }
+
         // Medium: Has notification emails (commonly configured for header-based SSO)
         if (data.NotificationEmailAddresses.Count > 0 && score > 0)
         {
@@ -42,11 +59,49 @@ internal sealed class HeaderBasedDetector : IProtocolDetector
             score += 10;
         }
 
-        // Low: Has custom sign-in URL pattern (header-based apps often have specific URLs)
-        // We can't directly access customSignInUrl from current Graph data, but the
-        // presence of certain tags may indicate header-based configuration.
+        // NEW: No SAML indicators (negative evidence)
+        var hasSamlIndicators = !string.IsNullOrEmpty(data.SamlMetadataUrl) ||
+            data.KeyCredentials.Any(k => k.Type == "AsymmetricX509Cert") ||
+            !string.IsNullOrEmpty(data.TokenEncryptionKeyId);
+        if (!hasSamlIndicators && score > 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "SamlMetadataUrl",
+                Weight = 10,
+                Description = "No SAML configuration indicators found (supports header-based classification)",
+                Category = "NegativeEvidence"
+            });
+            score += 10;
+        }
 
-        var confidence = score switch
+        // NEW: No OIDC indicators (negative evidence)
+        var hasOidcIndicators = data.EnableIdTokenIssuance == true ||
+            data.RedirectUris.Any(u => u.StartsWith("http")) ||
+            data.PublicClientRedirectUris.Count > 0;
+        if (!hasOidcIndicators && score > 0)
+        {
+            evidence.Add(new ProtocolEvidence
+            {
+                Source = "Application",
+                Field = "EnableIdTokenIssuance",
+                Weight = 10,
+                Description = "No OIDC configuration indicators found (supports header-based classification)",
+                Category = "NegativeEvidence"
+            });
+            score += 10;
+        }
+
+        // NEW: AppRoleAssignmentRequired (common for header-based apps)
+        if (data.ServicePrincipalTags.Any(t => t.Contains("WindowsAzureActiveDirectoryIntegratedApp", StringComparison.OrdinalIgnoreCase)) && score > 0)
+        {
+            // This is actually a weak signal but helps in combination
+        }
+
+        // Confidence based on normalized score
+        var normalizedScore = MaxPossibleScore > 0 ? (double)score / MaxPossibleScore * 100 : 0;
+        var confidence = normalizedScore switch
         {
             >= 30 => ProtocolConfidence.High,
             >= 15 => ProtocolConfidence.Medium,
@@ -58,7 +113,8 @@ internal sealed class HeaderBasedDetector : IProtocolDetector
         {
             Protocol = AuthenticationProtocol.HeaderBased,
             Confidence = confidence,
-            Score = score,
+            Score = Math.Max(score, 0),
+            MaxPossibleScore = MaxPossibleScore,
             Evidence = evidence
         });
     }

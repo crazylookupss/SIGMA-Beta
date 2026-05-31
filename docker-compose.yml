@@ -1,0 +1,23 @@
+services:
+  sigma-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5107:8080"
+    environment:
+      - AzureAd__TenantId=${AZURE_AD_TENANT_ID}
+      - AzureAd__ClientId=${AZURE_AD_CLIENT_ID}
+      - AzureAd__ClientSecret=${AZURE_AD_CLIENT_SECRET}
+      - AzureAd__Audience=${AZURE_AD_AUDIENCE}
+      - Entra__TenantId=${AZURE_AD_TENANT_ID}
+      - Entra__ClientId=${AZURE_AD_CLIENT_ID}
+      - Entra__ClientSecret=${AZURE_AD_CLIENT_SECRET}
+      - ForwardedHeaders__Enabled=true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

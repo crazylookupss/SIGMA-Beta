@@ -1,8 +1,23 @@
 namespace SIGMA.Application.Features.ProtocolAnalysis.Models;
 
+public enum GovernanceSeverity
+{
+    Info,
+    Warning,
+    Critical
+}
+
+public enum GovernanceCategory
+{
+    Certificate,
+    Protocol,
+    Security,
+    Configuration
+}
+
 public sealed record GovernanceInsight
 {
-    public string Severity { get; init; } = string.Empty;
-    public string Category { get; init; } = string.Empty;
+    public GovernanceSeverity Severity { get; init; }
+    public GovernanceCategory Category { get; init; }
     public string Message { get; init; } = string.Empty;
 }

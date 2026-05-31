@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Core;
 using Azure.Identity;
+using Microsoft.Extensions.Caching.Memory;
 using SIGMA.Application.Abstractions;
 using SIGMA.Application.Common;
 using SIGMA.Domain.Common;
@@ -13,7 +14,6 @@ namespace SIGMA.Infrastructure.Graph;
 
 internal sealed class GraphClientService : IGraphClientService, IDisposable
 {
-    private const string GraphBaseUrl = "https://graph.microsoft.com/v1.0/";
     private const string DefaultUserSelect = "id,displayName,givenName,surname,userPrincipalName,identities,userType,creationType,createdDateTime,assignedLicenses,preferredLanguage,signInSessionsValidFromDateTime,lastPasswordChangeDateTime,externalUserState,externalUserStateChangeDateTime,passwordPolicies,passwordProfile,authorizationInfo,jobTitle,companyName,department,employeeId,employeeType,employeeHireDate,employeeOrgData,officeLocation,streetAddress,city,state,postalCode,country,businessPhones,mobilePhone,mail,otherMails,proxyAddresses,faxNumber,imAddresses,mailNickname,ageGroup,consentProvidedForMinor,legalAgeGroupClassification,accountEnabled,usageLocation,preferredDataLocation,onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesDistinguishedName,onPremisesExtensionAttributes,onPremisesImmutableId,onPremisesProvisioningErrors,onPremisesSamAccountName,onPremisesSecurityIdentifier,onPremisesUserPrincipalName,onPremisesDomainName";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -21,22 +21,15 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private readonly HttpClient _httpClient;
-    private readonly TokenCredential _credential;
-    private readonly string[] _scopes;
-    private AccessToken? _currentToken;
-    private readonly SemaphoreSlim _tokenLock = new(1, 1);
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly GraphTokenService _tokenService;
+    private readonly IMemoryCache _cache;
 
-    public GraphClientService(EntraAuthConfiguration config)
+    public GraphClientService(IHttpClientFactory httpClientFactory, GraphTokenService tokenService, IMemoryCache cache)
     {
-        _httpClient = new HttpClient { BaseAddress = new Uri(GraphBaseUrl) };
-        _credential = new ClientSecretCredential(
-            config.TenantId, config.ClientId, config.ClientSecret,
-            new ClientSecretCredentialOptions
-            {
-                AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
-            });
-        _scopes = config.Scopes;
+        _httpClientFactory = httpClientFactory;
+        _tokenService = tokenService;
+        _cache = cache;
     }
 
     public async Task<Result<PagedResponse<EntraUser>>> GetUsersAsync(
@@ -88,8 +81,34 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string? select, string? filter, int? top, int? skip, bool? count,
         CancellationToken cancellationToken = default)
     {
-        return await GetPagedAsync<GraphGroup, EntraGroup>(
+        var result = await GetPagedAsync<GraphGroup, EntraGroup>(
             "groups", MapGroup, select, filter, top, skip, count, cancellationToken);
+
+        if (result.IsFailure || result.Value == null)
+            return result;
+
+        // Enrich groups with MemberCount and OwnersCount in parallel
+        var enrichTasks = result.Value.Data.Select(async g =>
+        {
+            var members = await GetCollectionListAsync<MemberDto>($"groups/{Uri.EscapeDataString(g.Id)}/members?$select=id", cancellationToken);
+            var owners = await GetCollectionListAsync<OwnerDto>($"groups/{Uri.EscapeDataString(g.Id)}/owners?$select=id", cancellationToken);
+            
+            return g with
+            {
+                TotalDirectMembers = members.Count,
+                MemberCount = members.Count,
+                OwnersCount = owners.Count
+            };
+        });
+
+        var enriched = await Task.WhenAll(enrichTasks);
+        
+        return Result.Success(new PagedResponse<EntraGroup>
+        {
+            Data = enriched.ToList(),
+            NextLink = result.Value.NextLink,
+            Count = result.Value.Count
+        });
     }
 
     public async Task<Result<EntraGroup>> GetGroupByIdAsync(
@@ -184,19 +203,38 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             ? enterpriseAppFilter
             : $"({enterpriseAppFilter}) and ({filter})";
 
+        // Always include credentials and SSO fields in select to avoid N+1 enrichment for expiry checks
+        var enrichedSelect = string.IsNullOrWhiteSpace(select)
+            ? "id,appId,displayName,appDisplayName,servicePrincipalType,accountEnabled,publisherName,signInAudience,tags,appOwnerOrganizationId,createdDateTime,appRoleAssignmentRequired,preferredSingleSignOnMode,description,notificationEmailAddresses,appRoles,keyCredentials,passwordCredentials,customSingleSignOnUrl,servicePrincipalNames,loginUrl,preferredTokenSigningKeyThumbprint"
+            : $"{select},keyCredentials,passwordCredentials,customSingleSignOnUrl,servicePrincipalNames,loginUrl,preferredTokenSigningKeyThumbprint";
+
         var result = await GetPagedAsync<GraphServicePrincipalDto, EntraServicePrincipal>(
-            "servicePrincipals", MapServicePrincipal, select, combinedFilter, top, skip, count, cancellationToken);
+            "servicePrincipals", MapServicePrincipal, enrichedSelect, combinedFilter, top, skip, count, cancellationToken);
 
         if (result.IsFailure)
             return result;
 
-        // Enrichment: fetch user assignments and credential health for all enterprise apps
-        var enrichedData = await Task.WhenAll(
-            result.Value!.Data.Select(sp => EnrichServicePrincipalAsync(sp, cancellationToken)));
+        // Enrichment: batch-fetch user assignment counts for all SPs in a single Graph batch request
+        var spIds = result.Value!.Data.Select(sp => sp.Id).ToList();
+        var userCounts = await BatchGetUserCountsAsync(spIds, cancellationToken);
+
+        var enrichedData = result.Value.Data.Select(sp =>
+        {
+            var userCount = userCounts.GetValueOrDefault(sp.Id, 0);
+            var hasExpiringKeys = EvaluateCredentialHealth(sp.KeyCredentials, sp.PasswordCredentials);
+            var status = sp.AccountEnabled == false ? "Error" : hasExpiringKeys ? "Warning" : "Active";
+
+            return sp with
+            {
+                UsersCount = userCount,
+                AssignedUserCount = userCount,
+                SignInStatus = status,
+            };
+        }).ToList();
 
         return Result.Success(new PagedResponse<EntraServicePrincipal>
         {
-            Data = enrichedData.ToList(),
+            Data = enrichedData,
             NextLink = result.Value.NextLink,
             Count = result.Value.Count
         });
@@ -207,7 +245,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     {
         if (string.IsNullOrEmpty(select))
         {
-            select = "id,appId,displayName,appDisplayName,servicePrincipalType,accountEnabled,publisherName,signInAudience,tags,appOwnerOrganizationId,createdDateTime,appRoleAssignmentRequired,preferredSingleSignOnMode,description,notificationEmailAddresses,appRoles,keyCredentials,passwordCredentials";
+            select = "id,appId,displayName,appDisplayName,servicePrincipalType,accountEnabled,publisherName,signInAudience,tags,appOwnerOrganizationId,createdDateTime,appRoleAssignmentRequired,preferredSingleSignOnMode,description,notificationEmailAddresses,appRoles,keyCredentials,passwordCredentials,customSingleSignOnUrl,servicePrincipalNames,loginUrl,preferredTokenSigningKeyThumbprint";
         }
 
         var result = await GetSingleAsync<GraphServicePrincipalDto, EntraServicePrincipal>(
@@ -293,13 +331,149 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
     }
 
+    /// <summary>
+    /// Evaluates credential health in-memory from already-fetched data.
+    /// Returns true if any key or password credential expires within 30 days.
+    /// </summary>
+    private static bool EvaluateCredentialHealth(List<object> keyCredentials, List<object> passwordCredentials)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var keyObj in keyCredentials)
+        {
+            if (keyObj is JsonElement keyElement)
+            {
+                if (keyElement.TryGetProperty("endDateTime", out var endDt) && endDt.ValueKind == JsonValueKind.String)
+                {
+                    if (DateTimeOffset.TryParse(endDt.GetString(), out var expiry) && expiry < now.AddDays(30))
+                        return true;
+                }
+            }
+        }
+
+        foreach (var pwObj in passwordCredentials)
+        {
+            if (pwObj is JsonElement pwElement)
+            {
+                if (pwElement.TryGetProperty("endDateTime", out var endDt) && endDt.ValueKind == JsonValueKind.String)
+                {
+                    if (DateTimeOffset.TryParse(endDt.GetString(), out var expiry) && expiry < now.AddDays(30))
+                        return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Batches user count requests for multiple service principals into a single Graph batch call.
+    /// Returns a dictionary of SP ID -> assigned user count.
+    /// Falls back to individual requests if batch fails.
+    /// </summary>
+    private async Task<Dictionary<string, int>> BatchGetUserCountsAsync(List<string> spIds, CancellationToken ct)
+    {
+        var result = new Dictionary<string, int>();
+        if (spIds.Count == 0) return result;
+
+        const int batchSize = 20;
+        for (var i = 0; i < spIds.Count; i += batchSize)
+        {
+            var batch = spIds.Skip(i).Take(batchSize).ToList();
+            var requests = new List<object>();
+
+            for (var j = 0; j < batch.Count; j++)
+            {
+                var spId = batch[j];
+                requests.Add(new
+                {
+                    id = j.ToString(),
+                    method = "GET",
+                    url = $"/servicePrincipals/{Uri.EscapeDataString(spId)}/appRoleAssignedTo/$count?$top=0",
+                    headers = new { ConsistencyLevel = "eventual" }
+                });
+            }
+
+            try
+            {
+                var batchRequest = new { requests };
+                var token = await GetTokenAsync(ct);
+                var httpClient = _httpClientFactory.CreateClient("GraphApi");
+                var content = new StringContent(
+                    JsonSerializer.Serialize(batchRequest),
+                    System.Text.Encoding.UTF8,
+                    "application/json");
+
+                var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
+                {
+                    Content = content
+                };
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var response = await httpClient.SendAsync(request, ct);
+                if (!response.IsSuccessStatusCode) continue;
+
+                var batchResponse = await response.Content.ReadFromJsonAsync<GraphBatchResponse>(JsonOptions, ct);
+                if (batchResponse?.Responses == null) continue;
+
+                foreach (var resp in batchResponse.Responses)
+                {
+                    if (int.TryParse(resp.Id, out var idx) && idx < batch.Count)
+                    {
+                        var spId = batch[idx];
+                        if (resp.Status == 200 && int.TryParse(resp.Body?.Trim('"'), out var count))
+                        {
+                            result[spId] = count;
+                        }
+                        else
+                        {
+                            result[spId] = 0;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback: set 0 for all in this batch
+                foreach (var spId in batch)
+                {
+                    result.TryAdd(spId, 0);
+                }
+            }
+        }
+
+        return result;
+    }
+
 
     public async Task<Result<PagedResponse<EntraApplication>>> GetApplicationsAsync(
         string? select, string? filter, int? top, int? skip, bool? count,
         CancellationToken cancellationToken = default)
     {
-        return await GetPagedAsync<GraphApplicationDto, EntraApplication>(
+        var result = await GetPagedAsync<GraphApplicationDto, EntraApplication>(
             "applications", MapApplication, select, filter, top, skip, count, cancellationToken);
+
+        if (result.IsFailure || result.Value == null)
+            return result;
+
+        // Enrich applications with OwnersCount in parallel
+        var enrichTasks = result.Value.Data.Select(async app =>
+        {
+            var owners = await GetApplicationOwnersAsync(app.Id, cancellationToken);
+            return app with
+            {
+                OwnersCount = owners.Count
+            };
+        });
+
+        var enriched = await Task.WhenAll(enrichTasks);
+
+        return Result.Success(new PagedResponse<EntraApplication>
+        {
+            Data = enriched.ToList(),
+            NextLink = result.Value.NextLink,
+            Count = result.Value.Count
+        });
     }
 
     public async Task<Result<EntraApplication>> GetApplicationByIdAsync(
@@ -393,7 +567,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var filter = $"appId eq '{Uri.EscapeDataString(appId)}'";
             var select = "id,appId,displayName,signInAudience,publisherDomain,identifierUris,tags,createdDateTime,applicationTemplateId,"
                        + "web,api,requiredResourceAccess,appRoles,keyCredentials,passwordCredentials,info,"
-                       + "verifiedPublisher,certification,samlMetadataUrl,tokenEncryptionKeyId,isFallbackPublicClient,publicClient";
+                       + "verifiedPublisher,certification,samlMetadataUrl,tokenEncryptionKeyId,isFallbackPublicClient,publicClient,"
+                       + "groupMembershipClaims,optionalClaims";
             var url = BuildUrl("applications", select, filter, null, null, null);
             var response = await SendGetAsync(url, ct, eventualConsistency: true);
 
@@ -651,11 +826,23 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             AcceptMappedClaims = app.Api?.AcceptMappedClaims,
             Oauth2PermissionScopeValues = apiScopes,
             PublicClientRedirectUris = publicClientRedirects,
+            GroupMembershipClaims = app.GroupMembershipClaims,
+            OptionalClaims = app.OptionalClaims,
+            PreAuthorizedApplications = (app.Api?.PreAuthorizedApplications ?? []).Select(pa => new PreAuthorizedApp
+            {
+                AppId = pa.AppId,
+                PermissionScopes = pa.PermissionScopes ?? [],
+            }).ToList(),
+            KnownClientApplications = app.Api?.KnownClientApplications ?? [],
         };
     }
 
     public async Task<Result<EntraTenant>> GetTenantDetailsAsync(CancellationToken cancellationToken = default)
     {
+        const string cacheKey = "tenant_details";
+        if (_cache.TryGetValue<Result<EntraTenant>>(cacheKey, out var cached) && cached is not null)
+            return cached;
+
         try
         {
             var orgResponse = await SendGetAsync("organization", cancellationToken);
@@ -667,21 +854,20 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             if (org == null)
                 return Error.NotFound("Organization.NotFound", "No organization metadata found.");
 
-            // Fetch directory counts in parallel for optimal load times
+            // Fetch directory counts AND SKU info in parallel for optimal load times
             var usersTask = GetCountAsync("users", eventualConsistency: true, cancellationToken);
             var groupsTask = GetCountAsync("groups", eventualConsistency: true, cancellationToken);
             var appsTask = GetCountAsync("applications", eventualConsistency: true, cancellationToken);
             var spTask = GetCountAsync("servicePrincipals", eventualConsistency: true, cancellationToken, "tags/Any(x: x eq 'WindowsAzureActiveDirectoryIntegratedApp')");
             var devicesTask = GetCountAsync("devices", eventualConsistency: true, cancellationToken);
+            var skuTask = SendGetAsync("subscribedSkus", cancellationToken);
 
-
-
-            await Task.WhenAll(usersTask, groupsTask, appsTask, spTask, devicesTask);
+            await Task.WhenAll(usersTask, groupsTask, appsTask, spTask, devicesTask, skuTask);
 
             var license = "Microsoft Entra ID Free";
             try
             {
-                var skuResponse = await SendGetAsync("subscribedSkus", cancellationToken);
+                var skuResponse = skuTask.Result;
                 if (skuResponse.IsSuccessStatusCode)
                 {
                     var skuWrapper = await skuResponse.Content.ReadFromJsonAsync<GraphCollectionWrapper<GraphSkuDto>>(JsonOptions, cancellationToken);
@@ -699,7 +885,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
             var primaryDomain = org.VerifiedDomains?.FirstOrDefault(d => d.IsDefault == true)?.Name ?? "unknown";
 
-            return Result.Success(new EntraTenant
+            var result = Result.Success(new EntraTenant
             {
                 Id = org.Id ?? string.Empty,
                 DisplayName = org.DisplayName ?? "Default Directory",
@@ -711,6 +897,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 EnterpriseApplicationsCount = spTask.Result,
                 DevicesCount = devicesTask.Result
             });
+
+            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
+            return result;
         }
         catch (Exception ex)
         {
@@ -749,10 +938,12 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     {
         try
         {
-            var isManualPagination = top.HasValue;
+            // Enforce a default page size to prevent fetching all data into memory.
+            // Callers that need all data should pass an explicit $top or use $count=true.
+            var effectiveTop = top ?? 50;
             var allItems = new List<TTarget>();
             int? totalCount = null;
-            var url = BuildUrl(path, select, filter, top, skip, count);
+            var url = BuildUrl(path, select, filter, effectiveTop, skip, count);
             var isFirstPage = true;
             var consistencyNeeded = count == true || filter != null;
 
@@ -778,7 +969,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
                 url = wrapper.OdataNextLink;
 
-                if (isManualPagination)
+                // Only follow pagination if caller explicitly requested a specific $top
+                // Otherwise, return just the first page with nextLink for the client to fetch more
+                if (!top.HasValue)
                     break;
 
             } while (url != null);
@@ -789,7 +982,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             return Result.Success(new PagedResponse<TTarget>
             {
                 Data = allItems,
-                NextLink = isManualPagination ? url : null,
+                NextLink = url,
                 Count = totalCount ?? allItems.Count,
             });
         }
@@ -878,30 +1071,12 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             request.Headers.Add("ConsistencyLevel", "eventual");
         }
 
-        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        var httpClient = _httpClientFactory.CreateClient("GraphApi");
+        return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
     }
 
 
-    private async Task<string> GetTokenAsync(CancellationToken ct)
-    {
-        if (_currentToken.HasValue && _currentToken.Value.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
-            return _currentToken.Value.Token;
-
-        await _tokenLock.WaitAsync(ct);
-        try
-        {
-            if (_currentToken.HasValue && _currentToken.Value.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
-                return _currentToken.Value.Token;
-
-            var context = new TokenRequestContext(_scopes);
-            _currentToken = await _credential.GetTokenAsync(context, ct);
-            return _currentToken.Value.Token;
-        }
-        finally
-        {
-            _tokenLock.Release();
-        }
-    }
+    private Task<string> GetTokenAsync(CancellationToken ct) => _tokenService.GetTokenAsync(ct);
 
     private static string BuildUrl(string path, string? select, string? filter, int? top, int? skip, bool? count)
     {
@@ -1064,6 +1239,10 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         AppRoles = sp.AppRoles ?? [],
         KeyCredentials = sp.KeyCredentials ?? [],
         PasswordCredentials = sp.PasswordCredentials ?? [],
+        CustomSingleSignOnUrl = sp.CustomSingleSignOnUrl,
+        ServicePrincipalNames = sp.ServicePrincipalNames ?? [],
+        LoginUrl = sp.LoginUrl,
+        PreferredTokenSigningKeyThumbprint = sp.PreferredTokenSigningKeyThumbprint,
     };
 
     private static EntraApplication MapApplication(GraphApplicationDto app) => new()
@@ -1104,7 +1283,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             app.Api.AcceptMappedClaims,
             app.Api.KnownClientApplications ?? [],
             app.Api.Oauth2PermissionScopes ?? [],
-            app.Api.PreAuthorizedApplications ?? []),
+            app.Api.PreAuthorizedApplications?.Select(pa => new PreAuthorizedAppDto(pa.AppId, pa.PermissionScopes ?? [])).ToList() ?? []),
         AppRoles = app.AppRoles ?? [],
         PublicClient = app.PublicClient is null ? null : new PublicClientApplicationDto(
             app.PublicClient.RedirectUris ?? []),
@@ -1170,6 +1349,10 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
     public async Task<ApplicationStatistics> GetApplicationStatisticsAsync(CancellationToken ct = default)
     {
+        const string cacheKey = "app_statistics";
+        if (_cache.TryGetValue<ApplicationStatistics>(cacheKey, out var cached) && cached is not null)
+            return cached;
+
         try
         {
             // Fetch counts in parallel
@@ -1180,7 +1363,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             // Fetch app samples to compute status/protocol distribution
             var appsSelect = "id,appId,displayName,signInAudience,publisherDomain,identifierUris,createdDateTime,web,publicClient,api,samlMetadataUrl,keyCredentials,passwordCredentials,verifiedPublisher,certification";
             var appsResult = await GetPagedAsync<GraphApplicationDto, EntraApplication>(
-                "applications", MapApplication, appsSelect, null, null, null, null, ct);
+                "applications", MapApplication, appsSelect, null, 999, null, null, ct);
 
             await Task.WhenAll(totalAppsTask, totalSpTask);
 
@@ -1297,7 +1480,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                     expiredSecrets++;
             }
 
-            return new ApplicationStatistics
+            var result = new ApplicationStatistics
             {
                 TotalAppRegistrations = totalApps,
                 ActiveApplications = active,
@@ -1320,6 +1503,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 AppsWithExpiringSecrets = expiringSecrets,
                 AppsWithExpiredSecrets = expiredSecrets,
             };
+
+            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+            return result;
         }
         catch
         {
@@ -1332,18 +1518,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     {
         try
         {
-            var select = "id,appId,displayName,keyCredentials,passwordCredentials";
-            var result = await GetSingleAsync<GraphApplicationDto, EntraApplication>(
-                $"applications/{Uri.EscapeDataString(applicationId)}", MapApplication, select, ct);
-
-            if (result.IsFailure || result.Value == null)
-                return new AppCredentialHealth();
-
-            // The keyCredentials/passwordCredentials on EntraApplication are List<object>
-            // We need to cast them back to Graph* types. However, MapApplication transforms them
-            // to (object)k. For credential health we need the raw data.
-            // Fetch directly from Graph for credential evaluation.
-            var url = $"applications/{Uri.EscapeDataString(applicationId)}?$select=id,keyCredentials,passwordCredentials";
+            // Single HTTP call: fetch only the credential data we need
+            var url = $"applications/{Uri.EscapeDataString(applicationId)}?$select=id,appId,displayName,keyCredentials,passwordCredentials";
             var response = await SendGetAsync(url, ct);
             if (!response.IsSuccessStatusCode)
                 return new AppCredentialHealth();
@@ -1368,7 +1544,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                     StartDateTime = k.StartDateTime,
                     EndDateTime = k.EndDateTime,
                     IsExpired = k.EndDateTime.HasValue && k.EndDateTime.Value < now,
-                    IsExpiringSoon = k.EndDateTime.HasValue && k.EndDateTime.Value >= now && k.EndDateTime.Value < now.AddDays(30),
+                    IsExpiringSoon = k.EndDateTime.HasValue && k.EndDateTime.Value >= now && k.EndDateTime.Value < now.AddDays(90),
                     DaysUntilExpiry = daysUntil,
                 });
             }
@@ -1384,7 +1560,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                     EndDateTime = p.EndDateTime,
                     Hint = p.Hint,
                     IsExpired = p.EndDateTime.HasValue && p.EndDateTime.Value < now,
-                    IsExpiringSoon = p.EndDateTime.HasValue && p.EndDateTime.Value >= now && p.EndDateTime.Value < now.AddDays(30),
+                    IsExpiringSoon = p.EndDateTime.HasValue && p.EndDateTime.Value >= now && p.EndDateTime.Value < now.AddDays(90),
                     DaysUntilExpiry = daysUntil,
                 });
             }
@@ -1647,11 +1823,65 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         ReviewersCount = d.Reviewers?.Count ?? 0,
     };
 
-    public void Dispose() => _httpClient.Dispose();
+    public void Dispose() { }
+
+    public async Task<Result<ServicePrincipalProxyConfig>> GetServicePrincipalProxyConfigAsync(
+        string servicePrincipalId, CancellationToken ct = default)
+    {
+        var cacheKey = $"proxy_config_{servicePrincipalId}";
+        if (_cache.TryGetValue<Result<ServicePrincipalProxyConfig>>(cacheKey, out var cached) && cached is not null)
+            return cached;
+
+        try
+        {
+            var url = $"servicePrincipals/{Uri.EscapeDataString(servicePrincipalId)}/proxyConfiguration";
+            var response = await SendGetAsync(url, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Proxy not configured for this SP - return empty config
+                var emptyResult = Result.Success(new ServicePrincipalProxyConfig
+                {
+                    IsConfigured = false,
+                });
+                _cache.Set(cacheKey, emptyResult, TimeSpan.FromMinutes(5));
+                return emptyResult;
+            }
+
+            var proxyConfig = await response.Content.ReadFromJsonAsync<GraphProxyConfiguration>(JsonOptions, ct);
+
+            var result = Result.Success(new ServicePrincipalProxyConfig
+            {
+                IsConfigured = true,
+                ExternalUrl = proxyConfig?.ExternalUrl,
+                InternalUrl = proxyConfig?.InternalUrl,
+                PreAuthentication = proxyConfig?.PreAuthentication,
+                IsTranslationUrlEnabled = proxyConfig?.IsTranslationUrlEnabled ?? false,
+                TranslateUrlsInBody = proxyConfig?.TranslateUrlsInBody ?? false,
+                TranslateLinksInBody = proxyConfig?.TranslateLinksInBody ?? false,
+                VerifyDomainCertificates = proxyConfig?.VerifyDomainCertificates ?? false,
+            });
+
+            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+            return result;
+        }
+        catch
+        {
+            var errorResult = Result.Success(new ServicePrincipalProxyConfig
+            {
+                IsConfigured = false,
+            });
+            return errorResult;
+        }
+    }
 
     public async Task<Result<ServicePrincipalSsoConfig>> GetServicePrincipalSsoConfigAsync(
         string servicePrincipalId, CancellationToken ct = default)
     {
+        var cacheKey = $"sso_config_{servicePrincipalId}";
+        if (_cache.TryGetValue<Result<ServicePrincipalSsoConfig>>(cacheKey, out var cached) && cached is not null)
+            return cached;
+
         var spResult = await GetServicePrincipalByIdAsync(servicePrincipalId, null, ct);
         if (spResult.IsFailure)
             return spResult.Error!;
@@ -1664,6 +1894,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         {
             PreferredSingleSignOnMode = sp.PreferredSingleSignOnMode ?? string.Empty,
             TenantId = sp.AppOwnerOrganizationId,
+            SamlClaims = GetDefaultSamlClaims(),
         };
 
         var appResult = await GetApplicationByAppIdAsync(sp.AppId, ct);
@@ -1689,6 +1920,17 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                     EndDateTime = k.EndDateTime,
                 })
                 .ToList();
+
+            // Populate claims configuration
+            config.GroupMembershipClaims = app.GroupMembershipClaims;
+            config.OptionalClaims = app.OptionalClaims switch
+            {
+                System.Text.Json.JsonElement element when element.ValueKind == System.Text.Json.JsonValueKind.Array =>
+                    element.EnumerateArray().Select(c => c.GetProperty("name").GetString() ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList(),
+                _ => []
+            };
+            config.EnableIdTokenIssuance = app.EnableIdTokenIssuance;
+            config.EnableAccessTokenIssuance = app.EnableAccessTokenIssuance;
         }
 
         var tenantId = sp.AppOwnerOrganizationId ?? sp.Id;
@@ -1699,7 +1941,40 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         config.LoginUrl = $"https://login.microsoftonline.com/{tenantId}/saml2";
         config.MicrosoftEntraIdentifier = $"https://sts.windows.net/{tenantId}/";
 
-        return Result.Success(config);
+        // Detect primary protocol from available signals
+        config.DetectedPrimaryProtocol = DetectPrimaryProtocol(config);
+
+        var result = Result.Success(config);
+        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+        return result;
+    }
+
+    private static string? DetectPrimaryProtocol(ServicePrincipalSsoConfig config)
+    {
+        // First check explicit mode
+        if (!string.IsNullOrEmpty(config.PreferredSingleSignOnMode))
+        {
+            return config.PreferredSingleSignOnMode.ToLowerInvariant() switch
+            {
+                "saml" => "SAML",
+                "oidc" => "OpenID Connect",
+                "password" => "Password-Based",
+                "headers" or "headerbased" => "Header-Based",
+                "linked" => "Linked Sign-On",
+                "wsfed" or "ws-federation" => "WS-Federation",
+                _ => config.PreferredSingleSignOnMode
+            };
+        }
+
+        // Infer from signals
+        if (!string.IsNullOrEmpty(config.SamlMetadataUrl) || config.Certificates.Count > 0)
+            return "SAML";
+        if (config.EnableIdTokenIssuance == true || config.EnableAccessTokenIssuance == true)
+            return "OpenID Connect";
+        if (config.ReplyUrls.Count > 0)
+            return "OAuth 2.0";
+
+        return null;
     }
 
     private static string? DecodeThumbprint(string? customKeyIdentifier)
@@ -1715,6 +1990,18 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         {
             return customKeyIdentifier;
         }
+    }
+
+    private static List<SamlClaimInfo> GetDefaultSamlClaims()
+    {
+        return
+        [
+            new SamlClaimInfo { Name = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", Value = "user.userprincipalname", Namespace = "Unique User Identifier", IsOptional = false },
+            new SamlClaimInfo { Name = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname", Value = "user.givenname", Namespace = "givenname", IsOptional = false },
+            new SamlClaimInfo { Name = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname", Value = "user.surname", Namespace = "surname", IsOptional = false },
+            new SamlClaimInfo { Name = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", Value = "user.mail", Namespace = "emailaddress", IsOptional = false },
+            new SamlClaimInfo { Name = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", Value = "user.userprincipalname", Namespace = "name", IsOptional = false },
+        ];
     }
 
     private sealed record GraphUser
@@ -1846,6 +2133,10 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public List<object>? AppRoles { get; init; }
         public List<object>? KeyCredentials { get; init; }
         public List<object>? PasswordCredentials { get; init; }
+        public string? CustomSingleSignOnUrl { get; init; }
+        public List<string>? ServicePrincipalNames { get; init; }
+        public string? LoginUrl { get; init; }
+        public string? PreferredTokenSigningKeyThumbprint { get; init; }
     }
 
     private sealed record GraphApplicationDto
@@ -1914,9 +2205,15 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     {
         public int? RequestedAccessTokenVersion { get; init; }
         public bool? AcceptMappedClaims { get; init; }
-        public List<object>? KnownClientApplications { get; init; }
+        public List<string>? KnownClientApplications { get; init; }
         public List<object>? Oauth2PermissionScopes { get; init; }
-        public List<object>? PreAuthorizedApplications { get; init; }
+        public List<GraphPreAuthorizedApp>? PreAuthorizedApplications { get; init; }
+    }
+
+    private sealed record GraphPreAuthorizedApp
+    {
+        public string? AppId { get; init; }
+        public List<string>? PermissionScopes { get; init; }
     }
 
     private sealed record GraphPublicClientApplicationDto
@@ -1963,6 +2260,24 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
         [JsonPropertyName("@odata.count")]
         public int? OdataCount { get; init; }
+    }
+
+    private sealed record GraphBatchResponse
+    {
+        [JsonPropertyName("responses")]
+        public List<GraphBatchSubResponse>? Responses { get; init; }
+    }
+
+    private sealed record GraphBatchSubResponse
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; init; }
+
+        [JsonPropertyName("status")]
+        public int Status { get; init; }
+
+        [JsonPropertyName("body")]
+        public string? Body { get; init; }
     }
 
     private sealed record GraphOrganizationDto
@@ -2184,6 +2499,19 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         public string? Id { get; init; }
         public string? DisplayName { get; init; }
         public string? UserPrincipalName { get; init; }
+    }
+
+    // Proxy Configuration DTO
+    private sealed record GraphProxyConfiguration
+    {
+        public string? Id { get; init; }
+        public string? ExternalUrl { get; init; }
+        public string? InternalUrl { get; init; }
+        public string? PreAuthentication { get; init; }
+        public bool? IsTranslationUrlEnabled { get; init; }
+        public bool? TranslateUrlsInBody { get; init; }
+        public bool? TranslateLinksInBody { get; init; }
+        public bool? VerifyDomainCertificates { get; init; }
     }
 }
 
