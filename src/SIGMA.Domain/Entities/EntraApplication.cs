@@ -34,7 +34,7 @@ public sealed record EntraApplication
     public List<object> PasswordCredentials { get; init; } = [];
     public List<object> RequiredResourceAccess { get; init; } = [];
     public WebApplicationDto? Web { get; init; }
- 
+
     // Enriched properties for governance analysis
     public int? OwnersCount { get; init; }
 }
