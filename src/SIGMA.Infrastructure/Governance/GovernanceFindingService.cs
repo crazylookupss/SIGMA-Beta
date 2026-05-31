@@ -263,10 +263,10 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         {
             Summary = new GovernanceSummary
             {
-                Total    = findings.Count,
+                Total = findings.Count,
                 Critical = findings.Count(f => f.Severity == FindingSeverity.Critical),
-                Warning  = findings.Count(f => f.Severity == FindingSeverity.Warning),
-                Info     = findings.Count(f => f.Severity == FindingSeverity.Info),
+                Warning = findings.Count(f => f.Severity == FindingSeverity.Warning),
+                Info = findings.Count(f => f.Severity == FindingSeverity.Info),
                 LastAnalyzed = DateTimeOffset.UtcNow,
             },
             Findings = findings,
@@ -281,17 +281,17 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         string id, FindingCategory category, FindingSeverity severity,
         string title, string description, string entityType, string entityId,
         string entityName, string actionUrl) => new()
-    {
-        Id          = id,
-        Category    = category,
-        Severity    = severity,
-        Title       = title,
-        Description = description,
-        EntityType  = entityType,
-        EntityId    = entityId,
-        EntityName  = entityName,
-        ActionUrl   = actionUrl,
-    };
+        {
+            Id = id,
+            Category = category,
+            Severity = severity,
+            Title = title,
+            Description = description,
+            EntityType = entityType,
+            EntityId = entityId,
+            EntityName = entityName,
+            ActionUrl = actionUrl,
+        };
 
     public async Task<GovernanceFindingsResponse> GetFindingsByCategoryAsync(FindingCategory category, CancellationToken ct)
     {
@@ -301,10 +301,10 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         {
             Summary = new GovernanceSummary
             {
-                Total    = filtered.Count,
+                Total = filtered.Count,
                 Critical = filtered.Count(f => f.Severity == FindingSeverity.Critical),
-                Warning  = filtered.Count(f => f.Severity == FindingSeverity.Warning),
-                Info     = filtered.Count(f => f.Severity == FindingSeverity.Info),
+                Warning = filtered.Count(f => f.Severity == FindingSeverity.Warning),
+                Info = filtered.Count(f => f.Severity == FindingSeverity.Info),
                 LastAnalyzed = all.Summary.LastAnalyzed,
             },
             Findings = filtered,
@@ -319,10 +319,10 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         {
             Summary = new GovernanceSummary
             {
-                Total    = filtered.Count,
+                Total = filtered.Count,
                 Critical = filtered.Count(f => f.Severity == FindingSeverity.Critical),
-                Warning  = filtered.Count(f => f.Severity == FindingSeverity.Warning),
-                Info     = filtered.Count(f => f.Severity == FindingSeverity.Info),
+                Warning = filtered.Count(f => f.Severity == FindingSeverity.Warning),
+                Info = filtered.Count(f => f.Severity == FindingSeverity.Info),
                 LastAnalyzed = all.Summary.LastAnalyzed,
             },
             Findings = filtered,

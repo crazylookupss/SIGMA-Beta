@@ -32,9 +32,9 @@ builder.Services.AddAuthorization(options =>
     {
         policy.RequireAssertion(context =>
         {
-            var scp = context.User.FindFirst("scp")?.Value 
+            var scp = context.User.FindFirst("scp")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
-            var oid = context.User.FindFirst("oid")?.Value 
+            var oid = context.User.FindFirst("oid")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
             var appid = context.User.FindFirst("appid")?.Value;
             var iss = context.User.FindFirst("iss")?.Value;
@@ -56,9 +56,9 @@ builder.Services.AddAuthorization(options =>
     {
         policy.RequireAssertion(context =>
         {
-            var scp = context.User.FindFirst("scp")?.Value 
+            var scp = context.User.FindFirst("scp")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
-            var oid = context.User.FindFirst("oid")?.Value 
+            var oid = context.User.FindFirst("oid")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
 
             if (scp == null || oid == null) return false;

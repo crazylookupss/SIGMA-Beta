@@ -92,7 +92,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         {
             var members = await GetCollectionListAsync<MemberDto>($"groups/{Uri.EscapeDataString(g.Id)}/members?$select=id", cancellationToken);
             var owners = await GetCollectionListAsync<OwnerDto>($"groups/{Uri.EscapeDataString(g.Id)}/owners?$select=id", cancellationToken);
-            
+
             return g with
             {
                 TotalDirectMembers = members.Count,
@@ -102,7 +102,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         });
 
         var enriched = await Task.WhenAll(enrichTasks);
-        
+
         return Result.Success(new PagedResponse<EntraGroup>
         {
             Data = enriched.ToList(),
@@ -878,7 +878,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                         license = "Microsoft Entra ID P1";
                 }
             }
-            catch 
+            catch
             {
                 // Fall back gracefully to Microsoft Entra ID Free if permissions to read SKUs are restricted
             }
@@ -1065,7 +1065,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         var token = await GetTokenAsync(ct);
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        
+
         if (eventualConsistency)
         {
             request.Headers.Add("ConsistencyLevel", "eventual");
@@ -1211,7 +1211,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             GroupTypes = g.GroupTypes ?? [],
             Visibility = g.Visibility,
             CreatedDateTime = g.CreatedDateTime,
-            
+
             // New classifiers mapped from Entra ID standard fields
             MembershipType = membershipType,
             Source = source,
@@ -1409,8 +1409,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
                 // Protocol detection
                 var protocol = "Unknown";
-                var isSaml = !string.IsNullOrEmpty(app.SamlMetadataUrl) || 
-                             (app.Tags != null && (app.Tags.Contains("WindowsAzureActiveDirectoryCustomSingleSignOnApplication") || 
+                var isSaml = !string.IsNullOrEmpty(app.SamlMetadataUrl) ||
+                             (app.Tags != null && (app.Tags.Contains("WindowsAzureActiveDirectoryCustomSingleSignOnApplication") ||
                                                    app.Tags.Contains("WindowsAzureActiveDirectoryGalleryApplicationNonPrimaryV1")));
 
                 if (isSaml)
