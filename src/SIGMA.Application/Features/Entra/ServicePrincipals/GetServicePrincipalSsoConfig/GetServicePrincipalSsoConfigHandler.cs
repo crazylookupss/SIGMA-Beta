@@ -19,7 +19,9 @@ internal sealed class GetServicePrincipalSsoConfigHandler(
         var cfg = configResult.Value!;
         return Result.Success(new GetServicePrincipalSsoConfigResponse
         {
+            IsConfigured = cfg.IsConfigured,
             PreferredSingleSignOnMode = cfg.PreferredSingleSignOnMode,
+            DetectedPrimaryProtocol = cfg.DetectedPrimaryProtocol,
             SamlMetadataUrl = cfg.SamlMetadataUrl,
             EntityId = cfg.EntityId,
             ReplyUrls = cfg.ReplyUrls,
@@ -43,6 +45,17 @@ internal sealed class GetServicePrincipalSsoConfigHandler(
                 StartDateTime = c.StartDateTime,
                 EndDateTime = c.EndDateTime,
             }).ToList(),
+            GroupMembershipClaims = cfg.GroupMembershipClaims,
+            OptionalClaims = cfg.OptionalClaims,
+            SamlClaims = cfg.SamlClaims.Select(c => new SamlClaimDto
+            {
+                Name = c.Name,
+                Value = c.Value,
+                Namespace = c.Namespace,
+                IsOptional = c.IsOptional,
+            }).ToList(),
+            EnableIdTokenIssuance = cfg.EnableIdTokenIssuance,
+            EnableAccessTokenIssuance = cfg.EnableAccessTokenIssuance,
         });
     }
 }

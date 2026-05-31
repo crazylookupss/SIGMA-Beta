@@ -79,6 +79,10 @@ public interface IGraphClientService
     Task<Result<ServicePrincipalSsoConfig>> GetServicePrincipalSsoConfigAsync(
         string servicePrincipalId, CancellationToken cancellationToken = default);
 
+    // Proxy Configuration
+    Task<Result<ServicePrincipalProxyConfig>> GetServicePrincipalProxyConfigAsync(
+        string servicePrincipalId, CancellationToken cancellationToken = default);
+
     // Group Details methods
     Task<List<EntraGroupMember>> GetGroupMembersAsync(
         string groupId, CancellationToken cancellationToken = default);
@@ -122,6 +126,18 @@ public sealed record ServicePrincipalRef
     public string? DisplayName { get; init; }
     public bool? AccountEnabled { get; init; }
     public DateTimeOffset? CreatedDateTime { get; init; }
+}
+
+public sealed record ServicePrincipalProxyConfig
+{
+    public bool IsConfigured { get; init; }
+    public string? ExternalUrl { get; init; }
+    public string? InternalUrl { get; init; }
+    public string? PreAuthentication { get; init; }
+    public bool IsTranslationUrlEnabled { get; init; }
+    public bool TranslateUrlsInBody { get; init; }
+    public bool TranslateLinksInBody { get; init; }
+    public bool VerifyDomainCertificates { get; init; }
 }
 
 public sealed record ApplicationStatistics
@@ -203,6 +219,35 @@ public sealed class ServicePrincipalSsoConfig
     public string? LoginUrl { get; set; }
     public string? MicrosoftEntraIdentifier { get; set; }
     public string? TenantId { get; set; }
+
+    // Claims configuration
+    public string? GroupMembershipClaims { get; set; }
+    public List<string> OptionalClaims { get; set; } = [];
+    public List<SamlClaimInfo> SamlClaims { get; set; } = [];
+
+    // OIDC grant types
+    public bool? EnableIdTokenIssuance { get; set; }
+    public bool? EnableAccessTokenIssuance { get; set; }
+
+    // Comprehensive SSO detection
+    public bool IsConfigured => !string.IsNullOrEmpty(PreferredSingleSignOnMode)
+        || !string.IsNullOrEmpty(SamlMetadataUrl)
+        || Certificates.Count > 0
+        || !string.IsNullOrEmpty(EntityId)
+        || EnableIdTokenIssuance == true
+        || EnableAccessTokenIssuance == true
+        || ReplyUrls.Count > 0;
+
+    // Detected primary protocol (from protocol analysis)
+    public string? DetectedPrimaryProtocol { get; set; }
+}
+
+public sealed class SamlClaimInfo
+{
+    public string Name { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public string Namespace { get; set; } = string.Empty;
+    public bool IsOptional { get; set; }
 }
 
 public sealed class SsoCertificate
@@ -268,6 +313,18 @@ public sealed record EntraApplicationDetails
     public bool? AcceptMappedClaims { get; init; }
     public List<string> Oauth2PermissionScopeValues { get; init; } = [];
     public List<string> PublicClientRedirectUris { get; init; } = [];
+
+    // SSO protocol analysis fields
+    public string? GroupMembershipClaims { get; init; }
+    public object? OptionalClaims { get; init; }
+    public List<PreAuthorizedApp> PreAuthorizedApplications { get; init; } = [];
+    public List<string> KnownClientApplications { get; init; } = [];
+}
+
+public sealed record PreAuthorizedApp
+{
+    public string? AppId { get; init; }
+    public List<string> PermissionScopes { get; init; } = [];
 }
 
 public sealed record EntraAppPermission

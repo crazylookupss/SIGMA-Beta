@@ -32,9 +32,9 @@ builder.Services.AddAuthorization(options =>
     {
         policy.RequireAssertion(context =>
         {
-            var scp = context.User.FindFirst("scp")?.Value 
+            var scp = context.User.FindFirst("scp")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
-            var oid = context.User.FindFirst("oid")?.Value 
+            var oid = context.User.FindFirst("oid")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
             var appid = context.User.FindFirst("appid")?.Value;
             var iss = context.User.FindFirst("iss")?.Value;
@@ -56,9 +56,9 @@ builder.Services.AddAuthorization(options =>
     {
         policy.RequireAssertion(context =>
         {
-            var scp = context.User.FindFirst("scp")?.Value 
+            var scp = context.User.FindFirst("scp")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
-            var oid = context.User.FindFirst("oid")?.Value 
+            var oid = context.User.FindFirst("oid")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
 
             if (scp == null || oid == null) return false;
@@ -71,7 +71,17 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddHttpClient();
+
+// Configure Minimal APIs to serialize Enums as strings (e.g. "Critical" instead of 0)
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
+
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 
 builder.Services.AddCors(options =>
 {
@@ -138,6 +148,7 @@ if (builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseResponseCompression();
 
 if (app.Environment.IsDevelopment())
 {
@@ -174,6 +185,9 @@ entra.MapUserEndpoints();
 entra.MapGroupEndpoints();
 entra.MapServicePrincipalEndpoints();
 entra.MapApplicationEndpoints();
+
+var governance = api.MapGroup("").RequireAuthorization("DelegatedUserPolicy");
+governance.MapGovernanceEndpoints();
 
 app.MapHub<SigmaHub>("/hubs/sigma");
 

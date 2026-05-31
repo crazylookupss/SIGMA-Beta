@@ -5,6 +5,8 @@ namespace SIGMA.Application.Features.ProtocolAnalysis.Detectors;
 
 internal sealed class LinkedSignOnDetector : IProtocolDetector
 {
+    private const int MaxPossibleScore = 40;
+
     public AuthenticationProtocol Protocol => AuthenticationProtocol.LinkedSignOn;
 
     public Task<ProtocolDetection> DetectAsync(DetectionData data, CancellationToken ct = default)
@@ -28,8 +30,6 @@ internal sealed class LinkedSignOnDetector : IProtocolDetector
         }
 
         // Medium: Has linked configuration indicators
-        // Linked sign-on apps typically have minimal Graph configuration
-        // (no redirect URIs, no SAML metadata, no certs) but exist as enterprise apps.
         if (score > 0 && data.RedirectUris.Count == 0 &&
             string.IsNullOrEmpty(data.SamlMetadataUrl) &&
             data.KeyCredentials.Count == 0 &&
@@ -46,7 +46,9 @@ internal sealed class LinkedSignOnDetector : IProtocolDetector
             score += 10;
         }
 
-        var confidence = score switch
+        // Confidence based on normalized score
+        var normalizedScore = MaxPossibleScore > 0 ? (double)score / MaxPossibleScore * 100 : 0;
+        var confidence = normalizedScore switch
         {
             >= 30 => ProtocolConfidence.High,
             >= 15 => ProtocolConfidence.Medium,
@@ -58,7 +60,8 @@ internal sealed class LinkedSignOnDetector : IProtocolDetector
         {
             Protocol = AuthenticationProtocol.LinkedSignOn,
             Confidence = confidence,
-            Score = score,
+            Score = Math.Max(score, 0),
+            MaxPossibleScore = MaxPossibleScore,
             Evidence = evidence
         });
     }

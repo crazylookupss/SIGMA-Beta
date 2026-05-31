@@ -57,7 +57,7 @@ internal sealed class ListApplicationsHandler(IGraphClientService graphClient)
                     app.Api.AcceptMappedClaims,
                     app.Api.KnownClientApplications,
                     app.Api.Oauth2PermissionScopes,
-                    app.Api.PreAuthorizedApplications),
+                    app.Api.PreAuthorizedApplications.Select(pa => new ListApplicationsPreAuthorizedApp(pa.AppId, pa.PermissionScopes)).ToList()),
                 AppRoles = app.AppRoles,
                 PublicClient = app.PublicClient is null ? null : new ListApplicationsPublicClient(
                     app.PublicClient.RedirectUris),

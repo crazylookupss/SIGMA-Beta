@@ -1,0 +1,21 @@
+# SIGMA API Code Owners
+# These owners will be automatically requested for review
+# when a pull request modifies matching files.
+
+# Default owner for everything
+* @crazylookupss
+
+# Domain layer
+src/SIGMA.Domain/ @crazylookupss
+
+# Application layer
+src/SIGMA.Application/ @crazylookupss
+
+# Infrastructure layer
+src/SIGMA.Infrastructure/ @crazylookupss
+
+# API layer
+src/SIGMA.Api/ @crazylookupss
+
+# Documentation
+docs/ @crazylookupss

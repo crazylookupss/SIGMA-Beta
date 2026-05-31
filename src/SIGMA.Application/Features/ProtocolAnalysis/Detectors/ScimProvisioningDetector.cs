@@ -5,6 +5,8 @@ namespace SIGMA.Application.Features.ProtocolAnalysis.Detectors;
 
 internal sealed class ScimProvisioningDetector : IProtocolDetector
 {
+    private const int MaxPossibleScore = 40;
+
     public AuthenticationProtocol Protocol => AuthenticationProtocol.ScimProvisioning;
 
     public Task<ProtocolDetection> DetectAsync(DetectionData data, CancellationToken ct = default)
@@ -76,7 +78,8 @@ internal sealed class ScimProvisioningDetector : IProtocolDetector
         {
             Protocol = AuthenticationProtocol.ScimProvisioning,
             Confidence = confidence,
-            Score = score,
+            Score = Math.Max(score, 0),
+            MaxPossibleScore = MaxPossibleScore,
             Evidence = evidence
         });
     }
