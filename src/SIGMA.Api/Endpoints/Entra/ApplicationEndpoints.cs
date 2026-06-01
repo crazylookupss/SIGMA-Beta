@@ -18,6 +18,7 @@ internal static class ApplicationEndpoints
             return Results.Ok(new { data = stats });
         })
         .WithName("GetApplicationStatistics")
+        .CacheOutput(options => options.Expire(TimeSpan.FromMinutes(2)).Tag("applications"))
         .WithTags("Entra Applications")
         .WithSummary("Get aggregated App Registration statistics")
         .WithDescription("Returns total counts, status distribution, protocol distribution, and risk metrics for all App Registrations.");
@@ -31,6 +32,7 @@ internal static class ApplicationEndpoints
             return ToResult(result);
         })
         .WithName("ListApplications")
+        .CacheOutput(options => options.Expire(TimeSpan.FromSeconds(60)).Tag("applications"))
         .WithTags("Entra Applications")
         .WithSummary("List all Entra ID applications")
         .WithDescription("Returns a paginated list of App Registrations from Microsoft Entra ID.");

@@ -24,6 +24,7 @@ internal static class GroupEndpoints
             return ToResult(result);
         })
         .WithName("ListGroups")
+        .CacheOutput(options => options.Expire(TimeSpan.FromSeconds(60)).Tag("groups"))
         .WithTags("Entra Groups")
         .WithSummary("List all Entra ID groups")
         .WithDescription("Returns a paginated list of groups from Microsoft Entra ID.");

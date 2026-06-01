@@ -13,6 +13,8 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
     private readonly ILogger<GovernanceFindingService> _logger;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(2);
 
+    private const int MaxEntitiesPerScan = 500;
+
     public GovernanceFindingService(
         IGraphClientService graphClient,
         ICacheProvider cache,
@@ -42,7 +44,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         // ── 1. APPLICATIONS ──────────────────────────────────────────────────
         _logger.LogInformation("[Governance] Fetching applications from Graph...");
         var appsResult = await _graphClient.GetApplicationsAsync(
-            null, null, 999, null, null, ct);
+            null, null, MaxEntitiesPerScan, null, null, ct);
 
         _logger.LogInformation("[Governance] Applications result: IsSuccess={IsSuccess}, Error={Error}",
             appsResult.IsSuccess, appsResult.Error?.Description);
@@ -51,39 +53,42 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         {
             _logger.LogInformation("[Governance] Processing {Count} applications...", appList.Count);
 
-            foreach (var app in appList)
+            // Batch credential checks to avoid N+1 sequential HTTP calls
+            const int credentialBatchSize = 20;
+            for (var i = 0; i < appList.Count; i += credentialBatchSize)
             {
-                _logger.LogDebug("[Governance] App: {Name}, OwnersCount={OwnersCount}",
-                    app.DisplayName, app.OwnersCount);
+                var batch = appList.Skip(i).Take(credentialBatchSize).ToList();
+                var credentialTasks = batch.Select(app =>
+                    _graphClient.GetApplicationCredentialsAsync(app.Id, ct)
+                        .ContinueWith(t => (App: app, Creds: t.IsCompletedSuccessfully ? t.Result : default), ct));
 
-                // ── Ownerless applications ────────────────────────────────────
-                // OwnersCount is nullable — treat null as 0 (no owner data = unassigned)
-                if ((app.OwnersCount ?? 0) == 0)
+                await Task.WhenAll(credentialTasks);
+
+                foreach (var task in credentialTasks)
                 {
-                    _logger.LogInformation("[Governance] Found ownerless app: {Name}", app.DisplayName);
-                    findings.Add(CreateFinding(
-                        $"app-no-owner-{app.Id}",
-                        FindingCategory.Ownership, FindingSeverity.Critical,
-                        "Application has no owners",
-                        $"Application '{app.DisplayName}' has no owners assigned",
-                        "Application", app.Id, app.DisplayName ?? "Unknown",
-                        $"/app-registrations/{app.Id}"));
-                }
+                    var app = task.Result.App;
+                    var creds = task.Result.Creds;
 
-                // ── Credential expiry — check raw password/key credentials ─────
-                // Use the strongly-typed credential health from GetApplicationCredentialsAsync
-                try
-                {
-                    var creds = await _graphClient.GetApplicationCredentialsAsync(app.Id, ct);
+                    // Ownerless applications
+                    if ((app.OwnersCount ?? 0) == 0)
+                    {
+                        findings.Add(CreateFinding(
+                            $"app-no-owner-{app.Id}",
+                            FindingCategory.Ownership, FindingSeverity.Critical,
+                            "Application has no owners",
+                            $"Application '{app.DisplayName}' has no owners assigned",
+                            "Application", app.Id, app.DisplayName ?? "Unknown",
+                            $"/app-registrations/{app.Id}"));
+                    }
 
-                    foreach (var secret in creds.Secrets)
+                    if (creds?.Secrets is null && creds?.Certificates is null) continue;
+
+                    foreach (var secret in creds?.Secrets ?? [])
                     {
                         if (secret.EndDateTime is null) continue;
 
                         if (secret.IsExpired)
                         {
-                            _logger.LogInformation("[Governance] Expired secret on app {Name}: {SecretName}",
-                                app.DisplayName, secret.DisplayName ?? secret.KeyId);
                             findings.Add(CreateFinding(
                                 $"app-secret-expired-{app.Id}-{secret.KeyId}",
                                 FindingCategory.Credentials, FindingSeverity.Critical,
@@ -94,8 +99,6 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
                         }
                         else if (secret.IsExpiringSoon)
                         {
-                            _logger.LogInformation("[Governance] Expiring secret on app {Name}: {SecretName}, days={Days}",
-                                app.DisplayName, secret.DisplayName ?? secret.KeyId, secret.DaysUntilExpiry);
                             findings.Add(CreateFinding(
                                 $"app-secret-expiring-{app.Id}-{secret.KeyId}",
                                 FindingCategory.Credentials, FindingSeverity.Warning,
@@ -106,7 +109,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
                         }
                     }
 
-                    foreach (var cert in creds.Certificates)
+                    foreach (var cert in creds?.Certificates ?? [])
                     {
                         if (cert.EndDateTime is null) continue;
 
@@ -132,10 +135,6 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[Governance] Failed to get credentials for app {AppId}", app.Id);
-                }
             }
         }
         else
@@ -155,7 +154,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
 
         // ── 2. GROUPS ─────────────────────────────────────────────────────────
         _logger.LogInformation("[Governance] Fetching groups from Graph...");
-        var groupsResult = await _graphClient.GetGroupsAsync(null, null, 999, null, null, ct);
+        var groupsResult = await _graphClient.GetGroupsAsync(null, null, MaxEntitiesPerScan, null, null, ct);
 
         _logger.LogInformation("[Governance] Groups result: IsSuccess={IsSuccess}, Count={Count}",
             groupsResult.IsSuccess, groupsResult.Value?.Data?.Count ?? -1);
@@ -197,7 +196,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         _logger.LogInformation("[Governance] Fetching users from Graph...");
         var usersResult = await _graphClient.GetUsersAsync(
             "id,displayName,accountEnabled,lastPasswordChangeDateTime,mobilePhone,userType",
-            null, 999, null, null, ct);
+            null, MaxEntitiesPerScan, null, null, ct);
 
         _logger.LogInformation("[Governance] Users result: IsSuccess={IsSuccess}, Count={Count}",
             usersResult.IsSuccess, usersResult.Value?.Data?.Count ?? -1);

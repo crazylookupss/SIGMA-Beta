@@ -22,6 +22,7 @@ internal static class TenantEndpoints
                 detail: result.Error.Description,
                 statusCode: 500);
         })
+        .CacheOutput(options => options.Expire(TimeSpan.FromMinutes(5)).Tag("tenant"))
         .WithName("GetTenantDetails")
         .WithTags("Entra Tenant")
         .WithSummary("Get active Entra ID tenant connection metadata")

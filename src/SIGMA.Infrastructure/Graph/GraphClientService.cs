@@ -72,8 +72,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         {
             await Task.WhenAll(managerTask, sponsorsTask);
 
-            var manager = managerTask.Result;
-            var sponsors = sponsorsTask.Result;
+            var manager = await managerTask;
+            var sponsors = await sponsorsTask;
 
             return user with
             {
@@ -139,7 +139,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         {
             await Task.WhenAll(membersTask, ownersTask, memberOfTask, transitiveTask);
 
-            var members = membersTask.Result;
+            var members = await membersTask;
             var directUsers = members.Count(m => m.OdataType == "#microsoft.graph.user" || m.OdataType == "microsoft.graph.user");
             var directGroups = members.Count(m => m.OdataType == "#microsoft.graph.group" || m.OdataType == "microsoft.graph.group");
             var directDevices = members.Count(m => m.OdataType == "#microsoft.graph.device" || m.OdataType == "microsoft.graph.device");
@@ -152,9 +152,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 DirectGroups = directGroups,
                 DirectDevices = directDevices,
                 DirectOthers = directOthers,
-                GroupMembershipsCount = memberOfTask.Result.Count,
-                OwnersCount = ownersTask.Result.Count,
-                TotalMembers = transitiveTask.Result.Count
+                GroupMembershipsCount = (await memberOfTask).Count,
+                OwnersCount = (await ownersTask).Count,
+                TotalMembers = (await transitiveTask).Count
             };
         }
         catch
@@ -1044,7 +1044,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var license = "Microsoft Entra ID Free";
             try
             {
-                var skuResponse = skuTask.Result;
+                var skuResponse = await skuTask;
                 if (skuResponse.IsSuccessStatusCode)
                 {
                     var skuWrapper = await skuResponse.Content.ReadFromJsonAsync<GraphCollectionWrapper<GraphSkuDto>>(JsonOptions, cancellationToken);
@@ -1068,11 +1068,11 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 DisplayName = org.DisplayName ?? "Default Directory",
                 PrimaryDomain = primaryDomain,
                 License = license,
-                UsersCount = usersTask.Result,
-                GroupsCount = groupsTask.Result,
-                ApplicationsCount = appsTask.Result,
-                EnterpriseApplicationsCount = spTask.Result,
-                DevicesCount = devicesTask.Result
+                UsersCount = await usersTask,
+                GroupsCount = await groupsTask,
+                ApplicationsCount = await appsTask,
+                EnterpriseApplicationsCount = await spTask,
+                DevicesCount = await devicesTask
             });
 
             await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10), cancellationToken);
@@ -1607,8 +1607,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
             await Task.WhenAll(totalAppsTask, totalSpTask);
 
-            var totalApps = totalAppsTask.Result;
-            var totalSp = totalSpTask.Result;
+            var totalApps = await totalAppsTask;
+            var totalSp = await totalSpTask;
 
             if (appsResult.IsFailure || appsResult.Value == null)
             {
