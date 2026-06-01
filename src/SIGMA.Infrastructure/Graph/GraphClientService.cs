@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Core;
 using Azure.Identity;
+using Microsoft.Extensions.Logging;
 using SIGMA.Application.Abstractions;
 using SIGMA.Application.Caching;
 using SIGMA.Application.Common;
@@ -34,12 +35,14 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly GraphTokenService _tokenService;
     private readonly ICacheProvider _cache;
+    private readonly ILogger<GraphClientService> _logger;
 
-    public GraphClientService(IHttpClientFactory httpClientFactory, GraphTokenService tokenService, ICacheProvider cache)
+    public GraphClientService(IHttpClientFactory httpClientFactory, GraphTokenService tokenService, ICacheProvider cache, ILogger<GraphClientService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _tokenService = tokenService;
         _cache = cache;
+        _logger = logger;
     }
 
     public async Task<Result<PagedResponse<EntraUser>>> GetUsersAsync(
@@ -81,8 +84,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 Sponsors = sponsors.Select(s => new UserSponsorDto(s.Id, s.DisplayName, s.UserPrincipalName)).ToList()
             };
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to enrich user {UserId} with manager/sponsors", user.Id);
             return user;
         }
     }
@@ -99,8 +103,12 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
         // Batch-fetch member and owner counts for all groups (replaces N+1 fan-out)
         var groupIds = result.Value.Data.Select(g => g.Id).ToList();
-        var memberCounts = await BatchGetGroupMemberCountsAsync(groupIds, cancellationToken);
-        var ownerCounts = await BatchGetGroupOwnerCountsAsync(groupIds, cancellationToken);
+        var memberCountsTask = BatchGetGroupMemberCountsAsync(groupIds, cancellationToken);
+        var ownerCountsTask = BatchGetGroupOwnerCountsAsync(groupIds, cancellationToken);
+        await Task.WhenAll(memberCountsTask, ownerCountsTask);
+
+        var memberCounts = await memberCountsTask;
+        var ownerCounts = await ownerCountsTask;
 
         var enriched = result.Value.Data.Select(g => g with
         {
@@ -157,8 +165,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 TotalMembers = (await transitiveTask).Count
             };
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to enrich group {GroupId} with membership/ownership counts", group.Id);
             // Fail gracefully to basic group properties if Graph relationship endpoints fail
             return group;
         }
@@ -175,8 +184,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<T>>(JsonOptions, ct);
             return wrapper?.Value ?? [];
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch collection from {Path}", path);
             return [];
         }
     }
@@ -191,8 +201,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
             return await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch navigation entity from {Path}", path);
             return null;
         }
     }
@@ -277,7 +288,10 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 usersCount = wrapper?.OdataCount ?? 0;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to enrich service principal {SpId} with assignment count", sp.Id);
+        }
 
         var hasExpiringKeys = false;
         try
@@ -312,7 +326,10 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check credential expiry for service principal {SpId}", sp.Id);
+        }
 
         var status = "Active";
         if (sp.AccountEnabled == false)
@@ -334,7 +351,6 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             SignInStatus = status,
             LastSignIn = lastSignIn
         };
-
     }
 
     /// <summary>
@@ -440,9 +456,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback: set 0 for all in this batch
+                _logger.LogWarning(ex, "Failed to batch-fetch user counts for service principals");
                 foreach (var spId in batch)
                 {
                     result.TryAdd(spId, 0);
@@ -534,8 +550,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Failed to batch-fetch owner counts for applications");
                 foreach (var appId in batch)
                 {
                     result.TryAdd(appId, 0);
@@ -612,8 +629,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Failed to batch-fetch {Navigation} counts for groups", navigation);
                 foreach (var id in batch)
                 {
                     result.TryAdd(id, 0);
@@ -675,8 +693,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
             return wrapper.Value.Select(s => new SignInHistoryEntry(s.CreatedDateTime)).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch sign-in history");
             return [];
         }
     }
@@ -690,8 +709,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await GetCollectionListAsync<GraphAppRoleAssignment>(url, ct);
             return wrapper.Select(MapAssignment).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch app role assignments for service principal {ServicePrincipalId}", servicePrincipalId);
             return [];
         }
     }
@@ -705,8 +725,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await GetCollectionListAsync<GraphOwnerEntry>(url, ct);
             return wrapper.Select(MapOwner).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch owners for service principal {ServicePrincipalId}", servicePrincipalId);
             return [];
         }
     }
@@ -729,8 +750,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
             return wrapper.Value.Select(s => new SignInHistoryEntry(s.CreatedDateTime)).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch sign-in history for service principal with appId {AppId}", appId);
             return [];
         }
     }
@@ -854,9 +876,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 };
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fail gracefully - leave permissions as raw GUIDs
+            _logger.LogWarning(ex, "Failed to resolve permission display names from service principals");
         }
     }
 
@@ -879,7 +901,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         OwnerType = o.OdataType?.Contains("user", StringComparison.OrdinalIgnoreCase) == true ? "User" : "ServicePrincipal",
     };
 
-    private static EntraApplicationDetails MapApplicationDetails(GraphApplicationDto app)
+    private EntraApplicationDetails MapApplicationDetails(GraphApplicationDto app)
     {
         var redirectUris = new List<string>();
         var logoutUrls = new List<string>();
@@ -1055,9 +1077,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                         license = "Microsoft Entra ID P1";
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back gracefully to Microsoft Entra ID Free if permissions to read SKUs are restricted
+                _logger.LogWarning(ex, "Failed to fetch subscribed SKUs for license detection, falling back to Free tier");
             }
 
             var primaryDomain = org.VerifiedDomains?.FirstOrDefault(d => d.IsDefault == true)?.Name ?? "unknown";
@@ -1100,8 +1122,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<object>>(JsonOptions, ct);
             return wrapper?.OdataCount ?? 0;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch entity count for {Path}", path);
             return 0;
         }
     }
@@ -1167,8 +1190,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         {
             return Error.ExternalService("GraphError", ex.Message);
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException ex)
         {
+            _logger.LogWarning(ex, "Request to Microsoft Graph timed out");
             return Error.ExternalService("GraphTimeout", "Request to Microsoft Graph timed out.");
         }
         catch (CredentialUnavailableException ex)
@@ -1215,8 +1239,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         {
             return Error.ExternalService("GraphError", ex.Message);
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException ex)
         {
+            _logger.LogWarning(ex, "Request to Microsoft Graph timed out");
             return Error.ExternalService("GraphTimeout", "Request to Microsoft Graph timed out.");
         }
         catch (CredentialUnavailableException ex)
@@ -1255,7 +1280,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         });
     }
 
-    private static async Task<HttpResponseMessage> SendWithRetryAsync(
+    private async Task<HttpResponseMessage> SendWithRetryAsync(
         HttpClient httpClient,
         CancellationToken ct,
         Func<Task<HttpRequestMessage>> requestFactory)
@@ -1279,13 +1304,15 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 response.Dispose();
                 await Task.Delay(delay, ct);
             }
-            catch (HttpRequestException) when (attempt < MaxGraphRetryAttempts)
+            catch (HttpRequestException ex) when (attempt < MaxGraphRetryAttempts)
             {
+                _logger.LogWarning(ex, "Graph request failed on attempt {Attempt}, retrying", attempt);
                 response?.Dispose();
                 await Task.Delay(GetRetryDelay(null, attempt), ct);
             }
-            catch (TaskCanceledException) when (!ct.IsCancellationRequested && attempt < MaxGraphRetryAttempts)
+            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested && attempt < MaxGraphRetryAttempts)
             {
+                _logger.LogWarning(ex, "Graph request timed out on attempt {Attempt}, retrying", attempt);
                 response?.Dispose();
                 await Task.Delay(GetRetryDelay(null, attempt), ct);
             }
@@ -1556,8 +1583,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await GetCollectionListAsync<GraphOwnerEntry>(url, ct);
             return wrapper.Select(MapOwner).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch application owners for {ApplicationId}", applicationId);
             return [];
         }
     }
@@ -1580,8 +1608,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 CreatedDateTime = sp.CreatedDateTime,
             }).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch service principals for application with appId {AppId}", appId);
             return [];
         }
     }
@@ -1747,8 +1776,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5), ct);
             return result;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to compute application statistics");
             return new ApplicationStatistics();
         }
     }
@@ -1815,8 +1845,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 CredentialsExpired = certificates.Count(c => c.IsExpired) + secrets.Count(s => s.IsExpired),
             };
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch credential health for application {ApplicationId}", applicationId);
             return new AppCredentialHealth();
         }
     }
@@ -1852,8 +1883,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 CorrelationId = e.CorrelationId,
             }).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch audit logs for application with appId {AppId}", appId);
             return [];
         }
     }
@@ -1898,8 +1930,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await GetCollectionListAsync<GraphMemberEntry>(url, ct);
             return wrapper.Select(MapGroupMember).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch members for group {GroupId}", groupId);
             return [];
         }
     }
@@ -1913,8 +1946,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await GetCollectionListAsync<GraphOwnerEntry>(url, ct);
             return wrapper.Select(MapGroupOwner).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch owners for group {GroupId}", groupId);
             return [];
         }
     }
@@ -1928,8 +1962,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await GetCollectionListAsync<GraphAppRoleAssignment>(url, ct);
             return wrapper.Select(MapGroupApplication).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch app role assignments for group {GroupId}", groupId);
             return [];
         }
     }
@@ -1943,8 +1978,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var wrapper = await GetCollectionListAsync<GraphDeviceEntry>(url, ct);
             return wrapper.Select(MapGroupDevice).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch devices for group {GroupId}", groupId);
             return [];
         }
     }
@@ -1967,8 +2003,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
             return body.Value.Select(MapGroupAuditLog).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch audit logs for group {GroupId}", groupId);
             return [];
         }
     }
@@ -1991,8 +2028,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
             return body.Value.Select(MapGroupAccessReview).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch access reviews for group {GroupId}", groupId);
             return [];
         }
     }
@@ -2106,8 +2144,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5), ct);
             return result;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch proxy configuration for service principal {ServicePrincipalId}", servicePrincipalId);
             var errorResult = Result.Success(new ServicePrincipalProxyConfig
             {
                 IsConfigured = false,
@@ -2219,7 +2258,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         return null;
     }
 
-    private static string? DecodeThumbprint(string? customKeyIdentifier)
+    private string? DecodeThumbprint(string? customKeyIdentifier)
     {
         if (string.IsNullOrEmpty(customKeyIdentifier))
             return null;
@@ -2228,8 +2267,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             var bytes = Convert.FromBase64String(customKeyIdentifier);
             return Convert.ToHexString(bytes).ToLowerInvariant();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to decode thumbprint from custom key identifier, returning raw value");
             return customKeyIdentifier;
         }
     }

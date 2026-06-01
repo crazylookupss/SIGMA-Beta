@@ -14,7 +14,7 @@ WORKDIR /app
 EXPOSE 5107
 
 ENV ASPNETCORE_URLS=http://+:5107
-ENV DOTNET_ENVIRONMENT=Development
+ENV DOTNET_ENVIRONMENT=Production
 
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "SIGMA.Api.dll"]
