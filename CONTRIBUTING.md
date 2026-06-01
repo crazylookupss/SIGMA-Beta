@@ -89,11 +89,20 @@ test(entra): add unit tests for list users handler
 
 ## Pull Request Guidelines
 
-- Keep PRs focused on a single concern
-- Write clear commit messages following conventional commits
-- Ensure the build passes with zero warnings
-- Update documentation if adding or changing features
-- Link related issues in the PR description
+- **Keep PRs focused** on a single concern or feature.
+- **Write clear commit messages** following the Conventional Commits specification.
+- **Ensure CI passes**: Your PR must pass all automated GitHub Actions checks (build, tests, and formatting) with zero warnings before it can be merged.
+- **Code Review**: A maintainer will review your code. Be prepared to incorporate feedback.
+- **Documentation**: Update related documentation (like `README.md` or API specs) if adding or changing features.
+- **Link related issues** in the PR description using keywords like `Fixes #123`.
+
+## First-Time Contributors
+
+If this is your first time contributing to open source, we recommend checking out these resources:
+- [Finding ways to contribute to open source on GitHub](https://docs.github.com/en/get-started/exploring-projects-on-github/finding-ways-to-contribute-to-open-source-on-github)
+- [How to Contribute to Open Source](https://opensource.guide/how-to-contribute/)
+
+Look for issues labeled `good first issue` or `help wanted` to get started. Don't hesitate to ask questions in the issue comments!
 
 ## Reporting Issues
 
