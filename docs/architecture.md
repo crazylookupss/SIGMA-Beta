@@ -2,8 +2,8 @@
 
 | Metadata | Value |
 |----------|-------|
-| **Version** | 1.0.0 |
-| **Last Updated** | 2026-05-22 |
+| **Version** | 1.2.0 |
+| **Last Updated** | 2026-06-01 |
 | **Owner** | SIGMA Team |
 
 ---
@@ -79,13 +79,21 @@ SIGMA is a **wrapper API** that abstracts IAM/IGA/ITSM platform specifics behind
 │  │ - HttpClient + ClientSecretCredential             │   │
 │  │ - Token caching (SemaphoreSlim)                   │   │
 │  │ - OData query passthrough                         │   │
+│  │ - Graph $batch for multi-entity queries           │   │
 │  │ - Maps Graph JSON → Domain entities               │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │ Resilience (future)                               │   │
-│  │ - Polly retry/circuit breaker                     │   │
-│  │ - HybridCache (L1 memory + L2 Redis)              │   │
+│  │ ICacheProvider (abstraction)                      │   │
+│  │ - MemoryCacheProvider (local dev, single-node)    │   │
+│  │ - RedisCacheProvider (production, distributed)    │   │
+│  │ - Conditional DI: Redis when enabled, memory else │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │ Resilience                                        │   │
+│  │ - Polly retry/backoff for Graph API calls         │   │
+│  │ - Retry-after header respect                      │   │
 │  └──────────────────────────────────────────────────┘   │
 └──────────────────────┬───────────────────────────────────┘
                        │
@@ -240,13 +248,15 @@ All errors are returned as [RFC 9457](https://tools.ietf.org/html/rfc9457) Probl
 | Runtime | .NET | 10.0 |
 | API Framework | ASP.NET Core Minimal APIs | 10.0 |
 | Auth (Inbound) | Microsoft.Identity.Web (JWT Bearer) | 4.9+ |
-| Auth (Outbound/Graph) | Azure.Identity (ClientSecretCredential) | 1.17+ |
+| Auth (Outbound/Graph) | Azure.Identity (ClientSecretCredential) | 1.21+ |
 | Authorization | DelegatedUserPolicy (access_as_user scope + oid claim) | Custom |
-| Caching | Microsoft.Extensions.Caching.Hybrid | 10.6+ |
-| Resilience | Polly.Core | 8.6+ |
+| Caching | ICacheProvider (MemoryCacheProvider / RedisCacheProvider) | Custom |
+| Cache Backend | Microsoft.Extensions.Caching.StackExchangeRedis | 10.0+ |
+| Resilience | Polly.Core (retry/backoff for Graph API) | 8.6+ |
 | API Docs | Scalar.AspNetCore + Swashbuckle.SwaggerUI | 2.14+ / 10+ |
 | Validation | FluentValidation | 12.1+ |
-| Testing | xUnit + NSubstitute + FluentAssertions | Latest |
+| Testing | xUnit + coverlet (code coverage) | 2.9+ / 6.0+ |
+| CI | GitHub Actions (build, test, lint, audit, secret scan) | Latest |
 | Serialization | System.Text.Json | Built-in |
 
 ---
@@ -255,5 +265,6 @@ All errors are returned as [RFC 9457](https://tools.ietf.org/html/rfc9457) Probl
 
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
+| 2026-06-01 | 1.2.0 | SIGMA Team | Added ICacheProvider (Redis/memory), Graph $batch optimization, test infrastructure, CI pipeline |
 | 2026-05-24 | 1.1.0 | SIGMA Team | Updated for Microsoft.Identity.Web + DelegatedUserPolicy + Two-App Registration |
 | 2026-05-22 | 1.0.0 | SIGMA Team | Initial architecture |
