@@ -5,4 +5,8 @@
     <Project Path="src/SIGMA.Domain/SIGMA.Domain.csproj" />
     <Project Path="src/SIGMA.Infrastructure/SIGMA.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SIGMA.Application.Tests/SIGMA.Application.Tests.csproj" />
+    <Project Path="tests/SIGMA.Infrastructure.Tests/SIGMA.Infrastructure.Tests.csproj" />
+  </Folder>
 </Solution>

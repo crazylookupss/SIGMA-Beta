@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SIGMA.Application.Abstractions;
@@ -24,10 +26,27 @@ public static class DependencyInjection
 
         services.AddSingleton(entraConfig);
         services.AddSingleton<GraphTokenService>();
-        services.AddMemoryCache();
 
-        // Cache provider (abstraction for future Redis swap)
-        services.AddSingleton<ICacheProvider, MemoryCacheProvider>();
+        // Cache — Redis for multi-instance, in-memory for local dev
+        var redisEnabled = configuration.GetValue<bool>("Redis:Enabled");
+        if (redisEnabled)
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = configuration.GetValue<string>("Redis:Connection") ?? "localhost:6379";
+                options.InstanceName = configuration.GetValue<string>("Redis:InstanceName") ?? "sigma_";
+            });
+        }
+        else
+        {
+            services.AddMemoryCache();
+        }
+
+        // ICacheProvider — same abstraction regardless of backend
+        services.AddSingleton<ICacheProvider>(sp =>
+            redisEnabled
+                ? new RedisCacheProvider(sp.GetRequiredService<IDistributedCache>())
+                : new MemoryCacheProvider(sp.GetRequiredService<IMemoryCache>()));
 
         services.AddHttpClient("GraphApi", client =>
         {
