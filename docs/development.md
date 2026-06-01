@@ -2,8 +2,8 @@
 
 | Metadata | Value |
 |----------|-------|
-| **Version** | 1.0.0 |
-| **Last Updated** | 2026-05-22 |
+| **Version** | 1.1.0 |
+| **Last Updated** | 2026-06-01 |
 | **Owner** | SIGMA Team |
 
 ---
@@ -27,12 +27,12 @@ dotnet build --no-restore -c Release
 ### 1.2 Secrets Configuration
 
 ```bash
-dotnet user-secrets init --project src/SIGMA.Api
-dotnet user-secrets set "Entra:TenantId" "<tenant-id>" --project src/SIGMA.Api
-dotnet user-secrets set "Entra:ClientId" "<client-id>" --project src/SIGMA.Api
-dotnet user-secrets set "Entra:ClientSecret" "<client-secret>" --project src/SIGMA.Api
-dotnet user-secrets set "SwaggerOAuth:ClientId" "<web-app-client-id>" --project src/SIGMA.Api
+# Copy the template and fill in your real values
+cp src/SIGMA.Api/appsettings.json src/SIGMA.Api/appsettings.Local.json
+# Edit appsettings.Local.json with your TenantId, ClientId, ClientSecret
 ```
+
+> **Note:** `appsettings.Local.json` is gitignored. Never commit real secrets.
 
 ---
 
@@ -133,21 +133,32 @@ Features/
 
 ## 4. Testing
 
-### 4.1 Test Projects (future)
+### 4.1 Test Projects
 
 ```
 tests/
-├── SIGMA.Application.Tests/     # Unit tests for handlers
-└── SIGMA.Api.Tests/             # Integration tests for endpoints
+├── SIGMA.Application.Tests/     # Unit tests (protocol detectors, governance, Result)
+│   ├── Domain/
+│   │   └── ResultTests.cs
+│   └── ProtocolAnalysis/
+│       ├── SamlProtocolDetectorTests.cs
+│       ├── OidcProtocolDetectorTests.cs
+│       ├── OAuth2ProtocolDetectorTests.cs
+│       ├── WsFedProtocolDetectorTests.cs
+│       ├── GovernanceAnalyzerTests.cs
+│       └── InsightGeneratorTests.cs
+└── SIGMA.Infrastructure.Tests/  # Integration tests (cache providers)
+    └── Caching/
+        └── MemoryCacheProviderTests.cs
 ```
 
 ### 4.2 Testing Conventions
 
-- **Unit tests**: xUnit + NSubstitute for mocking
-- **Integration tests**: xUnit + custom WebApplicationFactory
+- **Unit tests**: xUnit with `[Fact]` and `[Theory]` attributes
 - **Test naming**: `{Method}_{Scenario}_Should{Expected}`
-  - `ListUsers_WhenGraphReturnsData_ShouldReturnSuccess()`
-  - `GetUser_WhenUserNotFound_ShouldReturnNotFound()`
+  - `DetectAsync_WithExplicitSamlSignals_ReturnsHighConfidenceDetection`
+  - `GetAsync_WithNonExistentKey_ReturnsDefault`
+- **Coverage**: Coverlet collector generates Cobertura reports
 
 ### 4.3 Running Tests
 
@@ -157,9 +168,13 @@ dotnet test
 
 # Specific project
 dotnet test tests/SIGMA.Application.Tests
+dotnet test tests/SIGMA.Infrastructure.Tests
 
-# With coverage
-dotnet test --collect:"XPlat Code Coverage"
+# With coverage report
+dotnet test --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+# Release mode (matches CI)
+dotnet test -c Release
 ```
 
 ---
@@ -191,8 +206,14 @@ dotnet build --verbosity normal
 # Check for outdated packages
 dotnet list package --outdated
 
+# Check for vulnerable packages
+dotnet list package --vulnerable --include-transitive
+
 # Format code
 dotnet format
+
+# Run tests
+dotnet test
 
 # Add new NuGet package
 dotnet add src/SIGMA.Infrastructure package <PackageName>
@@ -226,4 +247,5 @@ dotnet sln add src/SIGMA.Xyz/SIGMA.Xyz.csproj
 
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
+| 2026-06-01 | 1.1.0 | SIGMA Team | Added test instructions, appsettings.Local.json pattern, vulnerable package check |
 | 2026-05-22 | 1.0.0 | SIGMA Team | Initial development guide |

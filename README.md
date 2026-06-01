@@ -73,6 +73,8 @@ SIGMA API is an **enterprise identity gateway** that provides a consistent REST 
 - **Result pattern** with typed errors mapping to HTTP status codes
 - **Microsoft.Identity.Web** for JWT Bearer validation
 - **Two-App Registration** security model
+- **ICacheProvider** abstraction with Redis (production) or in-memory (local dev) backends
+- **Graph $batch** for optimized multi-entity queries (no N+1 fan-out)
 
 ---
 
@@ -92,18 +94,15 @@ git clone https://github.com/crazylookupss/SIGMA-Beta.git
 cd SIGMA-Beta
 dotnet restore
 
-# Configure Entra credentials (user-secrets for development)
-dotnet user-secrets init --project src/SIGMA.Api
-dotnet user-secrets set "AzureAd:TenantId" "<tenant-id>" --project src/SIGMA.Api
-dotnet user-secrets set "AzureAd:ClientId" "<api-app-client-id>" --project src/SIGMA.Api
-dotnet user-secrets set "AzureAd:ClientSecret" "<api-app-client-secret>" --project src/SIGMA.Api
-dotnet user-secrets set "Entra:TenantId" "<tenant-id>" --project src/SIGMA.Api
-dotnet user-secrets set "Entra:ClientId" "<api-app-client-id>" --project src/SIGMA.Api
-dotnet user-secrets set "Entra:ClientSecret" "<api-app-client-secret>" --project src/SIGMA.Api
+# Configure Entra credentials (copy template and fill in values)
+cp src/SIGMA.Api/appsettings.json src/SIGMA.Api/appsettings.Local.json
+# Edit appsettings.Local.json with your real TenantId, ClientId, ClientSecret
 
 # Run
 dotnet run --project src/SIGMA.Api
 ```
+
+> **Note:** `appsettings.Local.json` is gitignored and overrides the placeholder values in `appsettings.json`. Never commit real secrets.
 
 ### Verify
 
@@ -156,7 +155,10 @@ SIGMA-Beta/
 │   ├── SIGMA.Api/              # Minimal API endpoints, middleware, auth
 │   ├── SIGMA.Application/      # CQRS handlers, queries, responses
 │   ├── SIGMA.Domain/           # Entities, result pattern, error types
-│   └── SIGMA.Infrastructure/   # Graph REST client, configuration
+│   └── SIGMA.Infrastructure/   # Graph REST client, caching, configuration
+├── tests/
+│   ├── SIGMA.Application.Tests/    # Unit tests (protocol detectors, governance)
+│   └── SIGMA.Infrastructure.Tests/ # Integration tests (cache providers)
 ├── docs/
 │   ├── architecture.md
 │   ├── api-reference.md
@@ -165,7 +167,7 @@ SIGMA-Beta/
 │   ├── providers.md
 │   └── development.md
 ├── .github/
-│   ├── workflows/ci.yml        # CI pipeline
+│   ├── workflows/ci.yml        # CI pipeline (build, test, audit, secret scan)
 │   ├── ISSUE_TEMPLATE/         # Bug report & feature request
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── Dockerfile
