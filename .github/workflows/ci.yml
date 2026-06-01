@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # full history for secret scanning
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -49,11 +47,6 @@ jobs:
           }
           echo "No vulnerable packages found."
 
-      - name: Secret scanning
-        uses: trufflesecurity/trufflehog@main
-        with:
-          extra_args: --only-verified
-
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -69,3 +62,18 @@ jobs:
           name: test-results
           path: "**/*.trx"
           retention-days: 30
+
+  security:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog secret scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
