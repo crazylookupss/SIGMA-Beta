@@ -16,8 +16,8 @@ internal sealed class ProtocolClassifier : IProtocolClassifier
         _engine = engine;
     }
 
-    public ProtocolAnalysisResult Classify(DetectionData data)
+    public async Task<ProtocolAnalysisResult> ClassifyAsync(DetectionData data, CancellationToken cancellationToken = default)
     {
-        return _engine.AnalyzeAsync(data).GetAwaiter().GetResult();
+        return await _engine.AnalyzeAsync(data, cancellationToken);
     }
 }

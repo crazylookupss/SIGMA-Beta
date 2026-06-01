@@ -58,7 +58,7 @@ internal sealed class ProtocolAnalysisOrchestrator : IProtocolAnalysisOrchestrat
         }
 
         // Pipeline: Classify → Analyze → Generate
-        var result = _classifier.Classify(detectionData!);
+        var result = await _classifier.ClassifyAsync(detectionData!, ct);
         var governanceInsights = _governanceAnalyzer.Analyze(result, detectionData!);
         var generatedInsights = _insightGenerator.Generate(result, detectionData!);
 

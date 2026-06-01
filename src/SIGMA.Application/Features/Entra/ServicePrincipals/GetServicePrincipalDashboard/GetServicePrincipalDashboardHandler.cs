@@ -17,7 +17,7 @@ internal sealed class GetServicePrincipalDashboardHandler(IGraphClientService gr
 
         await Task.WhenAll(resultTask, signInTask);
 
-        var result = resultTask.Result;
+        var result = await resultTask;
         if (result.IsFailure)
             return result.Error!;
 
@@ -39,7 +39,7 @@ internal sealed class GetServicePrincipalDashboardHandler(IGraphClientService gr
         };
 
         // Sign-in history line chart data (requires Microsoft Entra ID P1/P2 license)
-        var signInEntries = signInTask.Result;
+        var signInEntries = await signInTask;
         var signInsHistory = signInEntries
             .Where(s => s.CreatedDateTime.HasValue)
             .GroupBy(s => s.CreatedDateTime!.Value.Date)

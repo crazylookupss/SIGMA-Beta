@@ -18,6 +18,7 @@ internal static class UserEndpoints
             return ToResult(result);
         })
         .WithName("ListUsers")
+        .CacheOutput(options => options.Expire(TimeSpan.FromSeconds(60)).Tag("users"))
         .WithTags("Entra Users")
         .WithSummary("List all Entra ID users")
         .WithDescription("Returns a paginated list of users from Microsoft Entra ID.");
