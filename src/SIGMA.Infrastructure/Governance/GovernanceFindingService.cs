@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using SIGMA.Application.Abstractions;
+using SIGMA.Application.Caching;
 using SIGMA.Application.Governance;
 using SIGMA.Application.Governance.Models;
 
@@ -9,13 +9,13 @@ namespace SIGMA.Infrastructure.Governance;
 internal sealed class GovernanceFindingService : IGovernanceFindingService
 {
     private readonly IGraphClientService _graphClient;
-    private readonly IMemoryCache _cache;
+    private readonly ICacheProvider _cache;
     private readonly ILogger<GovernanceFindingService> _logger;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(2);
 
     public GovernanceFindingService(
         IGraphClientService graphClient,
-        IMemoryCache cache,
+        ICacheProvider cache,
         ILogger<GovernanceFindingService> logger)
     {
         _graphClient = graphClient;
@@ -26,10 +26,14 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
     public async Task<GovernanceFindingsResponse> GetFindingsAsync(bool forceRefresh, CancellationToken ct)
     {
         const string cacheKey = "governance_findings";
-        if (!forceRefresh && _cache.TryGetValue<GovernanceFindingsResponse>(cacheKey, out var cached) && cached is not null)
+        if (!forceRefresh)
         {
-            _logger.LogInformation("[Governance] Returning cached response with {Count} findings", cached.Findings.Count);
-            return cached;
+            var cached = await _cache.GetAsync<GovernanceFindingsResponse>(cacheKey, ct);
+            if (cached is not null)
+            {
+                _logger.LogInformation("[Governance] Returning cached response with {Count} findings", cached.Findings.Count);
+                return cached;
+            }
         }
 
         var findings = new List<GovernanceFinding>();
@@ -272,7 +276,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
             Findings = findings,
         };
 
-        _cache.Set(cacheKey, response, CacheTtl);
+        await _cache.SetAsync(cacheKey, response, CacheTtl, ct);
         return response;
     }
 

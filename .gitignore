@@ -18,6 +18,7 @@ packages/
 # Secrets
 appsettings.json
 appsettings.Development.json
+appsettings.Local.json
 user-secrets.json
 
 # OS

@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for secret scanning
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -26,5 +28,44 @@ jobs:
       - name: Build
         run: dotnet build --no-restore -c Release
 
+      - name: Test with coverage
+        run: >
+          dotnet test --no-build -c Release
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./coverage
+
       - name: Verify formatting
         run: dotnet format --verify-no-changes --no-restore
+
+      - name: Dependency audit
+        run: |
+          echo "=== Checking for vulnerable packages ==="
+          dotnet list package --vulnerable --include-transitive
+          $vulnerable = dotnet list package --vulnerable --include-transitive 2>&1 | Select-String "has the following vulnerable packages"
+          if ($vulnerable) {
+            Write-Error "Vulnerable packages detected. Review output above."
+            exit 1
+          }
+          echo "No vulnerable packages found."
+
+      - name: Secret scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/*.trx"
+          retention-days: 30

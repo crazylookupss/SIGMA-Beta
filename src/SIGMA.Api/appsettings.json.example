@@ -20,6 +20,18 @@
   "Security": {
     "SensitiveScope": "sensitive_selfservice"
   },
+  "Cors": {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://localhost:3000"
+    ]
+  },
+  "RateLimiting": {
+    "PermitLimit": 120,
+    "WindowMinutes": 1,
+    "QueueLimit": 20
+  },
   "Entra": {
     "TenantId": "YOUR_TENANT_ID",
     "ClientId": "YOUR_API_APP_CLIENT_ID",
