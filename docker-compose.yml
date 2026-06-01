@@ -13,6 +13,7 @@ services:
       - Entra__TenantId=${AZURE_AD_TENANT_ID}
       - Entra__ClientId=${AZURE_AD_CLIENT_ID}
       - Entra__ClientSecret=${AZURE_AD_CLIENT_SECRET}
+      - Cors__AllowedOrigins__0=${SIGMA_WEB_ORIGIN:-http://localhost:3000}
       - ForwardedHeaders__Enabled=true
     restart: unless-stopped
     healthcheck:

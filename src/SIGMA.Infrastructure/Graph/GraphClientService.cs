@@ -1,10 +1,11 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Core;
 using Azure.Identity;
-using Microsoft.Extensions.Caching.Memory;
 using SIGMA.Application.Abstractions;
+using SIGMA.Application.Caching;
 using SIGMA.Application.Common;
 using SIGMA.Domain.Common;
 using SIGMA.Domain.Entities;
@@ -15,6 +16,15 @@ namespace SIGMA.Infrastructure.Graph;
 internal sealed class GraphClientService : IGraphClientService, IDisposable
 {
     private const string DefaultUserSelect = "id,displayName,givenName,surname,userPrincipalName,identities,userType,creationType,createdDateTime,assignedLicenses,preferredLanguage,signInSessionsValidFromDateTime,lastPasswordChangeDateTime,externalUserState,externalUserStateChangeDateTime,passwordPolicies,passwordProfile,authorizationInfo,jobTitle,companyName,department,employeeId,employeeType,employeeHireDate,employeeOrgData,officeLocation,streetAddress,city,state,postalCode,country,businessPhones,mobilePhone,mail,otherMails,proxyAddresses,faxNumber,imAddresses,mailNickname,ageGroup,consentProvidedForMinor,legalAgeGroupClassification,accountEnabled,usageLocation,preferredDataLocation,onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesDistinguishedName,onPremisesExtensionAttributes,onPremisesImmutableId,onPremisesProvisioningErrors,onPremisesSamAccountName,onPremisesSecurityIdentifier,onPremisesUserPrincipalName,onPremisesDomainName";
+    private const int MaxGraphRetryAttempts = 3;
+    private static readonly HttpStatusCode[] RetryableGraphStatuses =
+    [
+        HttpStatusCode.TooManyRequests,
+        HttpStatusCode.RequestTimeout,
+        HttpStatusCode.BadGateway,
+        HttpStatusCode.ServiceUnavailable,
+        HttpStatusCode.GatewayTimeout
+    ];
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -23,9 +33,9 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly GraphTokenService _tokenService;
-    private readonly IMemoryCache _cache;
+    private readonly ICacheProvider _cache;
 
-    public GraphClientService(IHttpClientFactory httpClientFactory, GraphTokenService tokenService, IMemoryCache cache)
+    public GraphClientService(IHttpClientFactory httpClientFactory, GraphTokenService tokenService, ICacheProvider cache)
     {
         _httpClientFactory = httpClientFactory;
         _tokenService = tokenService;
@@ -87,25 +97,21 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         if (result.IsFailure || result.Value == null)
             return result;
 
-        // Enrich groups with MemberCount and OwnersCount in parallel
-        var enrichTasks = result.Value.Data.Select(async g =>
+        // Batch-fetch member and owner counts for all groups (replaces N+1 fan-out)
+        var groupIds = result.Value.Data.Select(g => g.Id).ToList();
+        var memberCounts = await BatchGetGroupMemberCountsAsync(groupIds, cancellationToken);
+        var ownerCounts = await BatchGetGroupOwnerCountsAsync(groupIds, cancellationToken);
+
+        var enriched = result.Value.Data.Select(g => g with
         {
-            var members = await GetCollectionListAsync<MemberDto>($"groups/{Uri.EscapeDataString(g.Id)}/members?$select=id", cancellationToken);
-            var owners = await GetCollectionListAsync<OwnerDto>($"groups/{Uri.EscapeDataString(g.Id)}/owners?$select=id", cancellationToken);
-
-            return g with
-            {
-                TotalDirectMembers = members.Count,
-                MemberCount = members.Count,
-                OwnersCount = owners.Count
-            };
-        });
-
-        var enriched = await Task.WhenAll(enrichTasks);
+            TotalDirectMembers = memberCounts.GetValueOrDefault(g.Id, 0),
+            MemberCount = memberCounts.GetValueOrDefault(g.Id, 0),
+            OwnersCount = ownerCounts.GetValueOrDefault(g.Id, 0)
+        }).ToList();
 
         return Result.Success(new PagedResponse<EntraGroup>
         {
-            Data = enriched.ToList(),
+            Data = enriched,
             NextLink = result.Value.NextLink,
             Count = result.Value.Count
         });
@@ -397,20 +403,22 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             try
             {
                 var batchRequest = new { requests };
-                var token = await GetTokenAsync(ct);
                 var httpClient = _httpClientFactory.CreateClient("GraphApi");
-                var content = new StringContent(
-                    JsonSerializer.Serialize(batchRequest),
-                    System.Text.Encoding.UTF8,
-                    "application/json");
-
-                var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
+                var response = await SendWithRetryAsync(httpClient, ct, async () =>
                 {
-                    Content = content
-                };
-                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    var token = await GetTokenAsync(ct);
+                    var content = new StringContent(
+                        JsonSerializer.Serialize(batchRequest),
+                        System.Text.Encoding.UTF8,
+                        "application/json");
 
-                var response = await httpClient.SendAsync(request, ct);
+                    var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
+                    {
+                        Content = content
+                    };
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    return request;
+                });
                 if (!response.IsSuccessStatusCode) continue;
 
                 var batchResponse = await response.Content.ReadFromJsonAsync<GraphBatchResponse>(JsonOptions, ct);
@@ -445,6 +453,177 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         return result;
     }
 
+    /// <summary>
+    /// Batches member count requests for multiple groups into a single Graph batch call.
+    /// </summary>
+    private async Task<Dictionary<string, int>> BatchGetGroupMemberCountsAsync(List<string> groupIds, CancellationToken ct)
+    {
+        return await BatchGetNavigationCountAsync(groupIds, "members", ct);
+    }
+
+    /// <summary>
+    /// Batches owner count requests for multiple groups into a single Graph batch call.
+    /// </summary>
+    private async Task<Dictionary<string, int>> BatchGetGroupOwnerCountsAsync(List<string> groupIds, CancellationToken ct)
+    {
+        return await BatchGetNavigationCountAsync(groupIds, "owners", ct);
+    }
+
+    /// <summary>
+    /// Batches owner count requests for multiple applications into a single Graph batch call.
+    /// </summary>
+    private async Task<Dictionary<string, int>> BatchGetApplicationOwnerCountsAsync(List<string> appIds, CancellationToken ct)
+    {
+        var result = new Dictionary<string, int>();
+        if (appIds.Count == 0) return result;
+
+        const int batchSize = 20;
+        for (var i = 0; i < appIds.Count; i += batchSize)
+        {
+            var batch = appIds.Skip(i).Take(batchSize).ToList();
+            var requests = new List<object>();
+
+            for (var j = 0; j < batch.Count; j++)
+            {
+                var appId = batch[j];
+                requests.Add(new
+                {
+                    id = j.ToString(),
+                    method = "GET",
+                    url = $"/applications/{Uri.EscapeDataString(appId)}/owners/$count?$top=0",
+                });
+            }
+
+            try
+            {
+                var batchRequest = new { requests };
+                var httpClient = _httpClientFactory.CreateClient("GraphApi");
+                var response = await SendWithRetryAsync(httpClient, ct, async () =>
+                {
+                    var token = await GetTokenAsync(ct);
+                    var content = new StringContent(
+                        JsonSerializer.Serialize(batchRequest),
+                        System.Text.Encoding.UTF8,
+                        "application/json");
+
+                    var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
+                    {
+                        Content = content
+                    };
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    return request;
+                });
+                if (!response.IsSuccessStatusCode) continue;
+
+                var batchResponse = await response.Content.ReadFromJsonAsync<GraphBatchResponse>(JsonOptions, ct);
+                if (batchResponse?.Responses == null) continue;
+
+                foreach (var resp in batchResponse.Responses)
+                {
+                    if (int.TryParse(resp.Id, out var idx) && idx < batch.Count)
+                    {
+                        var appId = batch[idx];
+                        if (resp.Status == 200 && int.TryParse(resp.Body?.Trim('"'), out var count))
+                        {
+                            result[appId] = count;
+                        }
+                        else
+                        {
+                            result[appId] = 0;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                foreach (var appId in batch)
+                {
+                    result.TryAdd(appId, 0);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Generic batch helper for navigation $count requests on any entity.
+    /// </summary>
+    private async Task<Dictionary<string, int>> BatchGetNavigationCountAsync(
+        List<string> entityIds, string navigation, CancellationToken ct)
+    {
+        var result = new Dictionary<string, int>();
+        if (entityIds.Count == 0) return result;
+
+        const int batchSize = 20;
+        for (var i = 0; i < entityIds.Count; i += batchSize)
+        {
+            var batch = entityIds.Skip(i).Take(batchSize).ToList();
+            var requests = new List<object>();
+
+            for (var j = 0; j < batch.Count; j++)
+            {
+                var id = batch[j];
+                requests.Add(new
+                {
+                    id = j.ToString(),
+                    method = "GET",
+                    url = $"/groups/{Uri.EscapeDataString(id)}/{navigation}/$count?$top=0",
+                });
+            }
+
+            try
+            {
+                var batchRequest = new { requests };
+                var httpClient = _httpClientFactory.CreateClient("GraphApi");
+                var response = await SendWithRetryAsync(httpClient, ct, async () =>
+                {
+                    var token = await GetTokenAsync(ct);
+                    var content = new StringContent(
+                        JsonSerializer.Serialize(batchRequest),
+                        System.Text.Encoding.UTF8,
+                        "application/json");
+
+                    var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
+                    {
+                        Content = content
+                    };
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    return request;
+                });
+                if (!response.IsSuccessStatusCode) continue;
+
+                var batchResponse = await response.Content.ReadFromJsonAsync<GraphBatchResponse>(JsonOptions, ct);
+                if (batchResponse?.Responses == null) continue;
+
+                foreach (var resp in batchResponse.Responses)
+                {
+                    if (int.TryParse(resp.Id, out var idx) && idx < batch.Count)
+                    {
+                        var id = batch[idx];
+                        if (resp.Status == 200 && int.TryParse(resp.Body?.Trim('"'), out var count))
+                        {
+                            result[id] = count;
+                        }
+                        else
+                        {
+                            result[id] = 0;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                foreach (var id in batch)
+                {
+                    result.TryAdd(id, 0);
+                }
+            }
+        }
+
+        return result;
+    }
+
 
     public async Task<Result<PagedResponse<EntraApplication>>> GetApplicationsAsync(
         string? select, string? filter, int? top, int? skip, bool? count,
@@ -456,21 +635,18 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         if (result.IsFailure || result.Value == null)
             return result;
 
-        // Enrich applications with OwnersCount in parallel
-        var enrichTasks = result.Value.Data.Select(async app =>
-        {
-            var owners = await GetApplicationOwnersAsync(app.Id, cancellationToken);
-            return app with
-            {
-                OwnersCount = owners.Count
-            };
-        });
+        // Batch-fetch owner counts for all applications (replaces N+1 fan-out)
+        var appIds = result.Value.Data.Select(a => a.Id).ToList();
+        var ownerCounts = await BatchGetApplicationOwnerCountsAsync(appIds, cancellationToken);
 
-        var enriched = await Task.WhenAll(enrichTasks);
+        var enriched = result.Value.Data.Select(a => a with
+        {
+            OwnersCount = ownerCounts.GetValueOrDefault(a.Id, 0)
+        }).ToList();
 
         return Result.Success(new PagedResponse<EntraApplication>
         {
-            Data = enriched.ToList(),
+            Data = enriched,
             NextLink = result.Value.NextLink,
             Count = result.Value.Count
         });
@@ -840,7 +1016,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     public async Task<Result<EntraTenant>> GetTenantDetailsAsync(CancellationToken cancellationToken = default)
     {
         const string cacheKey = "tenant_details";
-        if (_cache.TryGetValue<Result<EntraTenant>>(cacheKey, out var cached) && cached is not null)
+        var cached = await _cache.GetAsync<Result<EntraTenant>>(cacheKey, cancellationToken);
+        if (cached is not null)
             return cached;
 
         try
@@ -898,7 +1075,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 DevicesCount = devicesTask.Result
             });
 
-            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
+            await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10), cancellationToken);
             return result;
         }
         catch (Exception ex)
@@ -1062,17 +1239,79 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
 
     private async Task<HttpResponseMessage> SendGetAsync(string url, CancellationToken ct, bool eventualConsistency = false)
     {
-        var token = await GetTokenAsync(ct);
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-        if (eventualConsistency)
+        var httpClient = _httpClientFactory.CreateClient("GraphApi");
+        return await SendWithRetryAsync(httpClient, ct, async () =>
         {
-            request.Headers.Add("ConsistencyLevel", "eventual");
+            var token = await GetTokenAsync(ct);
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            if (eventualConsistency)
+            {
+                request.Headers.Add("ConsistencyLevel", "eventual");
+            }
+
+            return request;
+        });
+    }
+
+    private static async Task<HttpResponseMessage> SendWithRetryAsync(
+        HttpClient httpClient,
+        CancellationToken ct,
+        Func<Task<HttpRequestMessage>> requestFactory)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            HttpResponseMessage? response = null;
+            try
+            {
+                response = await httpClient.SendAsync(
+                    await requestFactory(),
+                    HttpCompletionOption.ResponseHeadersRead,
+                    ct);
+
+                if (!ShouldRetry(response) || attempt >= MaxGraphRetryAttempts)
+                {
+                    return response;
+                }
+
+                var delay = GetRetryDelay(response, attempt);
+                response.Dispose();
+                await Task.Delay(delay, ct);
+            }
+            catch (HttpRequestException) when (attempt < MaxGraphRetryAttempts)
+            {
+                response?.Dispose();
+                await Task.Delay(GetRetryDelay(null, attempt), ct);
+            }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested && attempt < MaxGraphRetryAttempts)
+            {
+                response?.Dispose();
+                await Task.Delay(GetRetryDelay(null, attempt), ct);
+            }
+        }
+    }
+
+    private static bool ShouldRetry(HttpResponseMessage response) =>
+        RetryableGraphStatuses.Contains(response.StatusCode);
+
+    private static TimeSpan GetRetryDelay(HttpResponseMessage? response, int attempt)
+    {
+        if (response?.Headers.RetryAfter?.Delta is { } delta)
+        {
+            return delta;
         }
 
-        var httpClient = _httpClientFactory.CreateClient("GraphApi");
-        return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (response?.Headers.RetryAfter?.Date is { } date)
+        {
+            var retryAfter = date - DateTimeOffset.UtcNow;
+            if (retryAfter > TimeSpan.Zero)
+            {
+                return retryAfter;
+            }
+        }
+
+        return TimeSpan.FromMilliseconds(Math.Min(500 * Math.Pow(2, attempt), 4_000));
     }
 
 
@@ -1350,7 +1589,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     public async Task<ApplicationStatistics> GetApplicationStatisticsAsync(CancellationToken ct = default)
     {
         const string cacheKey = "app_statistics";
-        if (_cache.TryGetValue<ApplicationStatistics>(cacheKey, out var cached) && cached is not null)
+        var cached = await _cache.GetAsync<ApplicationStatistics>(cacheKey, ct);
+        if (cached is not null)
             return cached;
 
         try
@@ -1504,7 +1744,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 AppsWithExpiredSecrets = expiredSecrets,
             };
 
-            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+            await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5), ct);
             return result;
         }
         catch
@@ -1829,7 +2069,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string servicePrincipalId, CancellationToken ct = default)
     {
         var cacheKey = $"proxy_config_{servicePrincipalId}";
-        if (_cache.TryGetValue<Result<ServicePrincipalProxyConfig>>(cacheKey, out var cached) && cached is not null)
+        var cached = await _cache.GetAsync<Result<ServicePrincipalProxyConfig>>(cacheKey, ct);
+        if (cached is not null)
             return cached;
 
         try
@@ -1844,7 +2085,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 {
                     IsConfigured = false,
                 });
-                _cache.Set(cacheKey, emptyResult, TimeSpan.FromMinutes(5));
+                await _cache.SetAsync(cacheKey, emptyResult, TimeSpan.FromMinutes(5), ct);
                 return emptyResult;
             }
 
@@ -1862,7 +2103,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
                 VerifyDomainCertificates = proxyConfig?.VerifyDomainCertificates ?? false,
             });
 
-            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+            await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5), ct);
             return result;
         }
         catch
@@ -1879,7 +2120,8 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string servicePrincipalId, CancellationToken ct = default)
     {
         var cacheKey = $"sso_config_{servicePrincipalId}";
-        if (_cache.TryGetValue<Result<ServicePrincipalSsoConfig>>(cacheKey, out var cached) && cached is not null)
+        var cached = await _cache.GetAsync<Result<ServicePrincipalSsoConfig>>(cacheKey, ct);
+        if (cached is not null)
             return cached;
 
         var spResult = await GetServicePrincipalByIdAsync(servicePrincipalId, null, ct);
@@ -1945,7 +2187,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         config.DetectedPrimaryProtocol = DetectPrimaryProtocol(config);
 
         var result = Result.Success(config);
-        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+        await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5), ct);
         return result;
     }
 

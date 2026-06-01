@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
 using Microsoft.OpenApi;
@@ -11,6 +12,7 @@ using SIGMA.Api.Middleware;
 using SIGMA.Application;
 using SIGMA.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
+using System.Threading.RateLimiting;
 
 // Prevent legacy XML claim mapping (so 'scp' remains 'scp', and 'oid' remains 'oid')
 JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
@@ -20,6 +22,12 @@ var builder = WebApplication.CreateBuilder(args);
 var tenantId = builder.Configuration["AzureAd:TenantId"];
 var apiClientId = builder.Configuration["AzureAd:ClientId"];
 var sensitiveScope = builder.Configuration["Security:SensitiveScope"] ?? "sensitive_selfservice";
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()?
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .ToArray()
+    ?? ["http://localhost:3000", "http://localhost:3001", "https://localhost:3000"];
 
 // Configure JWT Bearer authentication via Microsoft.Identity.Web
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -36,16 +44,12 @@ builder.Services.AddAuthorization(options =>
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
             var oid = context.User.FindFirst("oid")?.Value
                       ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
-            var appid = context.User.FindFirst("appid")?.Value;
-            var iss = context.User.FindFirst("iss")?.Value;
 
             if (scp == null || !scp.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains("access_as_user") || oid == null)
             {
-                Console.WriteLine($"[DelegatedUserPolicy] DENIED — scp=[{scp}] oid=[{oid}] appid=[{appid}] iss=[{iss}]");
                 return false;
             }
 
-            Console.WriteLine($"[DelegatedUserPolicy] ALLOWED — scp=[{scp}] oid=[{oid}]");
             return true;
         });
     });
@@ -87,10 +91,34 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "https://localhost:3000")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
+    });
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        var partitionKey = context.User.Identity?.IsAuthenticated == true
+            ? context.User.FindFirst("oid")?.Value
+              ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+              ?? context.Connection.RemoteIpAddress?.ToString()
+              ?? "authenticated"
+            : context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("RateLimiting:PermitLimit", 120),
+                Window = TimeSpan.FromMinutes(builder.Configuration.GetValue("RateLimiting:WindowMinutes", 1)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue("RateLimiting:QueueLimit", 20)
+            });
     });
 });
 
@@ -149,6 +177,14 @@ if (builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseResponseCompression();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
+    context.Response.Headers.TryAdd("Referrer-Policy", "no-referrer");
+    context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    await next();
+});
 
 if (app.Environment.IsDevelopment())
 {
@@ -173,6 +209,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 var api = app.MapGroup("/api/v1");
@@ -189,6 +226,6 @@ entra.MapApplicationEndpoints();
 var governance = api.MapGroup("").RequireAuthorization("DelegatedUserPolicy");
 governance.MapGovernanceEndpoints();
 
-app.MapHub<SigmaHub>("/hubs/sigma");
+app.MapHub<SigmaHub>("/hubs/sigma").RequireAuthorization("DelegatedUserPolicy");
 
 app.Run();
