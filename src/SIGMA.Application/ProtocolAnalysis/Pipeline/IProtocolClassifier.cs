@@ -7,5 +7,5 @@ namespace SIGMA.Application.ProtocolAnalysis.Pipeline;
 /// </summary>
 public interface IProtocolClassifier
 {
-    ProtocolAnalysisResult Classify(DetectionData data);
+    Task<ProtocolAnalysisResult> ClassifyAsync(DetectionData data, CancellationToken cancellationToken = default);
 }

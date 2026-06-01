@@ -14,21 +14,15 @@ internal sealed class ProtocolAnalysisEngine : IProtocolAnalysisEngine
 
     public async Task<ProtocolAnalysisResult> AnalyzeAsync(DetectionData data, CancellationToken ct = default)
     {
-        var detections = new List<ProtocolDetection>();
-        var allEvidence = new List<ProtocolEvidence>();
+        var detectionTasks = _detectors.Select(d => d.DetectAsync(data, ct)).ToList();
+        var detectionResults = await Task.WhenAll(detectionTasks);
 
-        foreach (var detector in _detectors)
-        {
-            var detection = await detector.DetectAsync(data, ct);
-            if (detection.IsDetected)
-            {
-                detections.Add(detection);
-                allEvidence.AddRange(detection.Evidence);
-            }
-        }
+        var detections = detectionResults
+            .Where(d => d.IsDetected)
+            .OrderByDescending(d => d.NormalizedScore)
+            .ToList();
 
-        // Sort by NORMALIZED score (0-100) for fair comparison across protocols
-        detections = [.. detections.OrderByDescending(d => d.NormalizedScore)];
+        var allEvidence = detections.SelectMany(d => d.Evidence).ToList();
 
         var primaryProtocol = detections.Count > 0
             ? detections[0].Protocol
