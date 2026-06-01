@@ -37,7 +37,8 @@ internal static class ServicePrincipalEndpoints
         .WithName("ListServicePrincipals")
         .WithTags("Entra Service Principals")
         .WithSummary("List all Entra ID service principals / enterprise apps")
-        .WithDescription("Returns a paginated list of service principals (enterprise applications) from Microsoft Entra ID.");
+        .WithDescription("Returns a paginated list of service principals (enterprise applications) from Microsoft Entra ID.")
+        .CacheOutput(builder => builder.Expire(TimeSpan.FromSeconds(60)));
 
         group.MapGet("/service-principals/{id}", async (
             string id,
