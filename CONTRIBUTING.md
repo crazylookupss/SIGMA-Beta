@@ -25,15 +25,10 @@ Before you begin, ensure you have:
    dotnet build
    ```
 
-3. **Configure secrets** (see [docs/development.md](docs/development.md) for details):
+3. **Configure secrets** (copy template and fill in your values):
    ```bash
-   dotnet user-secrets init --project src/SIGMA.Api
-   dotnet user-secrets set "AzureAd:TenantId" "<tenant-id>" --project src/SIGMA.Api
-   dotnet user-secrets set "AzureAd:ClientId" "<client-id>" --project src/SIGMA.Api
-   dotnet user-secrets set "AzureAd:ClientSecret" "<secret>" --project src/SIGMA.Api
-   dotnet user-secrets set "Entra:TenantId" "<tenant-id>" --project src/SIGMA.Api
-   dotnet user-secrets set "Entra:ClientId" "<client-id>" --project src/SIGMA.Api
-   dotnet user-secrets set "Entra:ClientSecret" "<secret>" --project src/SIGMA.Api
+   cp src/SIGMA.Api/appsettings.json src/SIGMA.Api/appsettings.Local.json
+   # Edit appsettings.Local.json with your TenantId, ClientId, ClientSecret
    ```
 
 4. **Run the API**:
@@ -45,12 +40,16 @@ Before you begin, ensure you have:
 
 1. **Fork the repository** and create a feature branch from `main`.
 2. **Make your changes** following the project's coding conventions.
-3. **Verify your changes**:
+3. **Run tests** to verify your changes:
+   ```bash
+   dotnet test -c Release
+   ```
+4. **Verify build and formatting**:
    ```bash
    dotnet build --no-restore -c Release
    dotnet format --verify-no-changes
    ```
-4. **Submit a pull request** with a clear description of the change.
+5. **Submit a pull request** with a clear description of the change.
 
 ## Code Standards
 
@@ -64,6 +63,14 @@ Before you begin, ensure you have:
 | Architecture | Clean Architecture (Domain -> Application -> Infrastructure -> Api) |
 | CQRS | Custom implementation (no MediatR) |
 | Error handling | Result pattern with typed errors |
+
+## Testing
+
+- **Framework**: xUnit with Coverlet for code coverage
+- **Test naming**: `{Method}_{Scenario}_Should{Expected}`
+- **Run all tests**: `dotnet test`
+- **Run with coverage**: `dotnet test --collect:"XPlat Code Coverage"`
+- **CI requirement**: All tests must pass before merge
 
 ## Commit Convention
 
