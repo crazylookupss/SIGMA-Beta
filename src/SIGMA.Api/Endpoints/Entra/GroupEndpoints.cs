@@ -21,7 +21,7 @@ internal static class GroupEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(query, ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("ListGroups")
         .CacheOutput(options => options.Expire(TimeSpan.FromSeconds(60)).Tag("groups"))
@@ -37,7 +37,7 @@ internal static class GroupEndpoints
         {
             var query = new GetGroupQuery(id, select);
             var result = await dispatcher.Send(query, ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetGroup")
         .WithTags("Entra Groups")
@@ -50,7 +50,7 @@ internal static class GroupEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetGroupMembersQuery(id), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetGroupMembers")
         .WithTags("Entra Groups")
@@ -63,7 +63,7 @@ internal static class GroupEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetGroupOwnersQuery(id), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetGroupOwners")
         .WithTags("Entra Groups")
@@ -76,7 +76,7 @@ internal static class GroupEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetGroupApplicationsQuery(id), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetGroupApplications")
         .WithTags("Entra Groups")
@@ -89,7 +89,7 @@ internal static class GroupEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetGroupDevicesQuery(id), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetGroupDevices")
         .WithTags("Entra Groups")
@@ -103,7 +103,7 @@ internal static class GroupEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetGroupAuditLogsQuery(id, top), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetGroupAuditLogs")
         .WithTags("Entra Groups")
@@ -116,7 +116,7 @@ internal static class GroupEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetGroupAccessReviewsQuery(id), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetGroupAccessReviews")
         .WithTags("Entra Groups")
@@ -124,36 +124,5 @@ internal static class GroupEndpoints
         .WithDescription("Returns access review definitions for a specific group from Microsoft Entra ID.");
 
         return group;
-    }
-
-    private static IResult ToResult<T>(Result<T> result)
-    {
-        if (result.IsSuccess)
-            return result.Value is null
-                ? Results.NotFound(new { title = "Not Found", status = 404 })
-                : Results.Ok(new { data = result.Value });
-
-        return result.Error!.Type switch
-        {
-            ErrorType.NotFound => Results.NotFound(new
-            {
-                type = "https://tools.ietf.org/html/rfc9457",
-                title = result.Error.Code,
-                status = 404,
-                detail = result.Error.Description,
-            }),
-            ErrorType.Validation => Results.BadRequest(new
-            {
-                type = "https://tools.ietf.org/html/rfc9457",
-                title = result.Error.Code,
-                status = 400,
-                detail = result.Error.Description,
-            }),
-            ErrorType.ExternalService => Results.StatusCode(502),
-            _ => Results.Problem(
-                title: result.Error.Code,
-                detail: result.Error.Description,
-                statusCode: 500),
-        };
     }
 }
