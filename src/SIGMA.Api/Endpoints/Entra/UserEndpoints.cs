@@ -1,6 +1,7 @@
 using SIGMA.Application.Abstractions;
 using SIGMA.Application.Features.Entra.Users.GetUser;
 using SIGMA.Application.Features.Entra.Users.ListUsers;
+using SIGMA.Api.Middleware;
 using SIGMA.Domain.Common;
 
 namespace SIGMA.Api.Endpoints.Entra;
@@ -36,7 +37,8 @@ internal static class UserEndpoints
         .WithName("GetUser")
         .WithTags("Entra Users")
         .WithSummary("Get Entra ID user by ID")
-        .WithDescription("Returns details of a specific user from Microsoft Entra ID.");
+        .WithDescription("Returns details of a specific user from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         return group;
     }
