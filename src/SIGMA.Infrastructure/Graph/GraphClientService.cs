@@ -5,6 +5,8 @@ using System.Text.Json.Serialization;
 using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
+using Polly.CircuitBreaker;
+using Polly;
 using SIGMA.Application.Abstractions;
 using SIGMA.Application.Caching;
 using SIGMA.Application.Common;
@@ -36,6 +38,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     private readonly GraphTokenService _tokenService;
     private readonly ICacheProvider _cache;
     private readonly ILogger<GraphClientService> _logger;
+    private readonly ResiliencePipeline _circuitBreaker;
 
     public GraphClientService(IHttpClientFactory httpClientFactory, GraphTokenService tokenService, ICacheProvider cache, ILogger<GraphClientService> logger)
     {
@@ -43,6 +46,25 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         _tokenService = tokenService;
         _cache = cache;
         _logger = logger;
+        _circuitBreaker = new ResiliencePipelineBuilder()
+            .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+            {
+                FailureRatio = 0.5,
+                MinimumThroughput = 10,
+                SamplingDuration = TimeSpan.FromSeconds(30),
+                BreakDuration = TimeSpan.FromSeconds(30),
+                OnOpened = args =>
+                {
+                    logger.LogWarning("Graph API circuit breaker OPENED — failing fast for {Duration}", args.BreakDuration);
+                    return ValueTask.CompletedTask;
+                },
+                OnClosed = args =>
+                {
+                    logger.LogInformation("Graph API circuit breaker CLOSED — resuming normal calls");
+                    return ValueTask.CompletedTask;
+                },
+            })
+            .Build();
     }
 
     public async Task<Result<PagedResponse<EntraUser>>> GetUsersAsync(
@@ -212,6 +234,12 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string? select, string? filter, int? top, int? skip, bool? count,
         CancellationToken cancellationToken = default)
     {
+        // Cache-aside: key includes all query parameters for distinct results
+        var cacheKey = $"sp:list:{select ?? ""}:{filter ?? ""}:{top}:{skip}:{count}";
+        var cached = await _cache.GetAsync<PagedResponse<EntraServicePrincipal>>(cacheKey, cancellationToken);
+        if (cached is not null)
+            return Result.Success(cached);
+
         // Apply enterprise application filter to match Microsoft Entra Admin Center exactly
         // Microsoft Entra ID uses the tag 'WindowsAzureActiveDirectoryIntegratedApp' to identify
         // service principals that appear in the "Enterprise applications" blade.
@@ -249,12 +277,16 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             };
         }).ToList();
 
-        return Result.Success(new PagedResponse<EntraServicePrincipal>
+        var response = new PagedResponse<EntraServicePrincipal>
         {
             Data = enrichedData,
             NextLink = result.Value.NextLink,
             Count = result.Value.Count
-        });
+        };
+
+        await _cache.SetAsync(cacheKey, response, TimeSpan.FromSeconds(60), cancellationToken);
+
+        return Result.Success(response);
     }
 
     public async Task<Result<EntraServicePrincipal>> GetServicePrincipalByIdAsync(
@@ -431,22 +463,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             try
             {
                 var batchRequest = new { requests };
-                var httpClient = _httpClientFactory.CreateClient("GraphApi");
-                var response = await SendWithRetryAsync(httpClient, ct, async () =>
-                {
-                    var token = await GetTokenAsync(ct);
-                    var content = new StringContent(
-                        JsonSerializer.Serialize(batchRequest),
-                        System.Text.Encoding.UTF8,
-                        "application/json");
-
-                    var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
-                    {
-                        Content = content
-                    };
-                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                    return request;
-                });
+                var response = await SendBatchAsync(batchRequest, ct);
                 if (!response.IsSuccessStatusCode) continue;
 
                 var batchResponse = await response.Content.ReadFromJsonAsync<GraphBatchResponse>(JsonOptions, ct);
@@ -525,22 +542,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             try
             {
                 var batchRequest = new { requests };
-                var httpClient = _httpClientFactory.CreateClient("GraphApi");
-                var response = await SendWithRetryAsync(httpClient, ct, async () =>
-                {
-                    var token = await GetTokenAsync(ct);
-                    var content = new StringContent(
-                        JsonSerializer.Serialize(batchRequest),
-                        System.Text.Encoding.UTF8,
-                        "application/json");
-
-                    var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
-                    {
-                        Content = content
-                    };
-                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                    return request;
-                });
+                var response = await SendBatchAsync(batchRequest, ct);
                 if (!response.IsSuccessStatusCode) continue;
 
                 var batchResponse = await response.Content.ReadFromJsonAsync<GraphBatchResponse>(JsonOptions, ct);
@@ -604,22 +606,7 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             try
             {
                 var batchRequest = new { requests };
-                var httpClient = _httpClientFactory.CreateClient("GraphApi");
-                var response = await SendWithRetryAsync(httpClient, ct, async () =>
-                {
-                    var token = await GetTokenAsync(ct);
-                    var content = new StringContent(
-                        JsonSerializer.Serialize(batchRequest),
-                        System.Text.Encoding.UTF8,
-                        "application/json");
-
-                    var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
-                    {
-                        Content = content
-                    };
-                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                    return request;
-                });
+                var response = await SendBatchAsync(batchRequest, ct);
                 if (!response.IsSuccessStatusCode) continue;
 
                 var batchResponse = await response.Content.ReadFromJsonAsync<GraphBatchResponse>(JsonOptions, ct);
@@ -1277,19 +1264,45 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     private async Task<HttpResponseMessage> SendGetAsync(string url, CancellationToken ct, bool eventualConsistency = false)
     {
         var httpClient = _httpClientFactory.CreateClient("GraphApi");
-        return await SendWithRetryAsync(httpClient, ct, async () =>
+        return await _circuitBreaker.ExecuteAsync(async _ =>
         {
-            var token = await GetTokenAsync(ct);
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-            if (eventualConsistency)
+            return await SendWithRetryAsync(httpClient, ct, async () =>
             {
-                request.Headers.Add("ConsistencyLevel", "eventual");
-            }
+                var token = await GetTokenAsync(ct);
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            return request;
-        });
+                if (eventualConsistency)
+                {
+                    request.Headers.Add("ConsistencyLevel", "eventual");
+                }
+
+                return request;
+            });
+        }, ct);
+    }
+
+    private async Task<HttpResponseMessage> SendBatchAsync(object batchRequest, CancellationToken ct)
+    {
+        var httpClient = _httpClientFactory.CreateClient("GraphApi");
+        return await _circuitBreaker.ExecuteAsync(async _ =>
+        {
+            return await SendWithRetryAsync(httpClient, ct, async () =>
+            {
+                var token = await GetTokenAsync(ct);
+                var content = new StringContent(
+                    JsonSerializer.Serialize(batchRequest),
+                    System.Text.Encoding.UTF8,
+                    "application/json");
+
+                var request = new HttpRequestMessage(HttpMethod.Post, "$batch")
+                {
+                    Content = content
+                };
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                return request;
+            });
+        }, ct);
     }
 
     private async Task<HttpResponseMessage> SendWithRetryAsync(

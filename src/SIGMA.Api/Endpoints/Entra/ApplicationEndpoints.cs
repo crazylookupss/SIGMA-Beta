@@ -1,6 +1,7 @@
 using SIGMA.Application.Abstractions;
 using SIGMA.Application.Features.Entra.Applications.GetApplication;
 using SIGMA.Application.Features.Entra.Applications.ListApplications;
+using SIGMA.Api.Middleware;
 using SIGMA.Domain.Common;
 
 namespace SIGMA.Api.Endpoints.Entra;
@@ -50,7 +51,8 @@ internal static class ApplicationEndpoints
         .WithName("GetApplication")
         .WithTags("Entra Applications")
         .WithSummary("Get Entra ID application by ID")
-        .WithDescription("Returns details of a specific App Registration from Microsoft Entra ID.");
+        .WithDescription("Returns details of a specific App Registration from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/applications/{id}/owners", async (
             string id,
@@ -63,7 +65,8 @@ internal static class ApplicationEndpoints
         .WithName("GetApplicationOwners")
         .WithTags("Entra Applications")
         .WithSummary("Get owners of an App Registration")
-        .WithDescription("Returns the owners (users and service principals) of this application registration.");
+        .WithDescription("Returns the owners (users and service principals) of this application registration.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/applications/{id}/service-principals", async (
             string id,
