@@ -7,6 +7,7 @@ using SIGMA.Application.Features.Entra.Groups.GetDevices;
 using SIGMA.Application.Features.Entra.Groups.GetAuditLogs;
 using SIGMA.Application.Features.Entra.Groups.GetAccessReviews;
 using SIGMA.Application.Features.Entra.Groups.ListGroups;
+using SIGMA.Api.Middleware;
 using SIGMA.Domain.Common;
 
 namespace SIGMA.Api.Endpoints.Entra;
@@ -42,7 +43,8 @@ internal static class GroupEndpoints
         .WithName("GetGroup")
         .WithTags("Entra Groups")
         .WithSummary("Get Entra ID group by ID")
-        .WithDescription("Returns details of a specific group from Microsoft Entra ID.");
+        .WithDescription("Returns details of a specific group from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/groups/{id}/members", async (
             string id,
@@ -55,7 +57,8 @@ internal static class GroupEndpoints
         .WithName("GetGroupMembers")
         .WithTags("Entra Groups")
         .WithSummary("Get group members")
-        .WithDescription("Returns the members of a specific group from Microsoft Entra ID.");
+        .WithDescription("Returns the members of a specific group from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/groups/{id}/owners", async (
             string id,
@@ -68,7 +71,8 @@ internal static class GroupEndpoints
         .WithName("GetGroupOwners")
         .WithTags("Entra Groups")
         .WithSummary("Get group owners")
-        .WithDescription("Returns the owners of a specific group from Microsoft Entra ID.");
+        .WithDescription("Returns the owners of a specific group from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/groups/{id}/applications", async (
             string id,
@@ -81,7 +85,8 @@ internal static class GroupEndpoints
         .WithName("GetGroupApplications")
         .WithTags("Entra Groups")
         .WithSummary("Get group app role assignments")
-        .WithDescription("Returns the application role assignments for a specific group from Microsoft Entra ID.");
+        .WithDescription("Returns the application role assignments for a specific group from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/groups/{id}/devices", async (
             string id,
@@ -94,7 +99,8 @@ internal static class GroupEndpoints
         .WithName("GetGroupDevices")
         .WithTags("Entra Groups")
         .WithSummary("Get group devices")
-        .WithDescription("Returns the device members of a specific group from Microsoft Entra ID.");
+        .WithDescription("Returns the device members of a specific group from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/groups/{id}/audit-logs", async (
             string id,
@@ -108,7 +114,8 @@ internal static class GroupEndpoints
         .WithName("GetGroupAuditLogs")
         .WithTags("Entra Groups")
         .WithSummary("Get group audit logs")
-        .WithDescription("Returns audit log entries for a specific group from Microsoft Entra ID.");
+        .WithDescription("Returns audit log entries for a specific group from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/groups/{id}/access-reviews", async (
             string id,
@@ -121,7 +128,8 @@ internal static class GroupEndpoints
         .WithName("GetGroupAccessReviews")
         .WithTags("Entra Groups")
         .WithSummary("Get group access reviews")
-        .WithDescription("Returns access review definitions for a specific group from Microsoft Entra ID.");
+        .WithDescription("Returns access review definitions for a specific group from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         return group;
     }

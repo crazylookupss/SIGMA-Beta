@@ -1,20 +1,21 @@
 # SIGMA API
 
 > **S**ecure **I**dentity **G**ateway & **M**anagement **A**PI
->
-> Enterprise-grade identity gateway API for IAM, IGA, and ITSM platforms.
+
+Enterprise-grade identity gateway API for IAM, IGA, and ITSM platforms.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 [![CI](https://github.com/crazylookupss/SIGMA-Beta/actions/workflows/ci.yml/badge.svg)](https://github.com/crazylookupss/SIGMA-Beta/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-48%20passing-brightgreen)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Security Policy](https://img.shields.io/badge/security-policy-red.svg)](SECURITY.md)
 
 ---
 
-## Overview
+## What is SIGMA?
 
-SIGMA API is an **enterprise identity gateway** that provides a consistent REST interface across identity platforms. It uses a **Two-App Registration** security model with **Microsoft.Identity.Web** for JWT validation, **Microsoft Graph** for directory data, and a custom **CQRS** architecture.
+SIGMA API is an **enterprise identity gateway** that provides a unified REST interface across identity platforms. It uses a **Two-App Registration** security model with **Microsoft.Identity.Web** for JWT validation, **Microsoft Graph** for directory data, and a custom **CQRS** architecture (no MediatR dependency).
 
 **Phase 1** targets Microsoft Entra ID (read-only, visibility-first):
 
@@ -32,6 +33,9 @@ SIGMA API is an **enterprise identity gateway** that provides a consistent REST 
 | **Service Principals** | `GET /api/v1/entra/service-principals/{id}/application` | Linked App Registration details |
 | **Service Principals** | `GET /api/v1/entra/service-principals/{id}/assignments` | Users and groups assigned to this app |
 | **Service Principals** | `GET /api/v1/entra/service-principals/{id}/owners` | Owners of the enterprise app |
+| **Service Principals** | `GET /api/v1/entra/service-principals/{id}/sso-config` | SAML/OIDC SSO configuration |
+| **Service Principals** | `GET /api/v1/entra/service-principals/{id}/proxy-configuration` | Application Proxy settings |
+| **Service Principals** | `GET /api/v1/entra/service-principals/{id}/protocol-analysis` | Protocol detection with confidence scoring |
 | **Service Principals** | `GET /api/v1/entra/service-principals/{id}/signins` | Recent sign-in activity (requires P1/P2) |
 | **App Registrations** | `GET /api/v1/entra/applications` | Paginated list of app registrations |
 | **App Registrations** | `GET /api/v1/entra/applications/{id}` | Single app registration details |
@@ -54,27 +58,33 @@ SIGMA API is an **enterprise identity gateway** that provides a consistent REST 
 ## Architecture
 
 ```
-+-------------+     +--------------+     +----------------+     +----------+
-|  SIGMA.Api  |---->|  Application |---->| Infrastructure |---->|  Domain  |
-| (Endpoints) |     |   (CQRS)     |     |   (Graph API)  |     |(Entities)|
-+-------------+     +--------------+     +----------------+     +----------+
-       |
-       | Microsoft.Identity.Web (JWT validation)
-       v
-+----------------------------------------------------------------------+
-| Inbound: DelegatedUserPolicy (access_as_user + oid)                  |
-| Outbound: ClientSecretCredential -> Microsoft Graph                  |
-| Two-App Registration: API App (graph perms) + Client App (user)      |
-+----------------------------------------------------------------------+
+┌─────────────────────────────────────────────────────────────────┐
+│                         SIGMA Api                                │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────┐    │
+│  │  Endpoints   │→│  Application │→│   Infrastructure     │    │
+│  │ (Minimal API)│  │   (CQRS)     │  │ (Graph, Cache, Polly)│    │
+│  └─────────────┘  └──────────────┘  └─────────────────────┘    │
+│         │                                                      │
+│         │  Microsoft.Identity.Web (JWT Bearer)                 │
+│         │  DelegatedUserPolicy (access_as_user + oid)          │
+│         │  SensitiveSelfServicePolicy (write operations)       │
+│         │                                                      │
+│         │  Outbound: ClientSecretCredential → Microsoft Graph  │
+│         │  Circuit Breaker: Polly (50% failure → 30s open)     │
+│         │  Cache: ICacheProvider (Memory / Redis)              │
+│         └──────────────────────────────────────────────────────│
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-- **Clean Architecture** with 4 layers (Domain -> Application -> Infrastructure -> Api)
-- **Custom CQRS** without MediatR (no licensing risk)
-- **Result pattern** with typed errors mapping to HTTP status codes
-- **Microsoft.Identity.Web** for JWT Bearer validation
-- **Two-App Registration** security model
-- **ICacheProvider** abstraction with Redis (production) or in-memory (local dev) backends
-- **Graph $batch** for optimized multi-entity queries (no N+1 fan-out)
+### Design Principles
+
+- **Clean Architecture** — 4 layers (Domain → Application → Infrastructure → Api)
+- **Custom CQRS** — No MediatR, no licensing risk
+- **Result Pattern** — Typed errors mapping to HTTP status codes
+- **Cache-Aside** — `ICacheProvider` with Redis (prod) or in-memory (dev) backends
+- **Graph Batching** — `$batch` requests for multi-entity queries (no N+1 fan-out)
+- **Circuit Breaker** — Polly v8 prevents hammering a failing Graph API
+- **Output Caching** — 60s server-side cache on list endpoints, 300s client cache on detail endpoints
 
 ---
 
@@ -108,7 +118,7 @@ dotnet run --project src/SIGMA.Api
 
 ```bash
 curl http://localhost:5107/api/v1/health
-# {"status":"healthy","timestamp":"2026-05-24T12:00:00Z"}
+# {"status":"healthy","timestamp":"2026-06-02T12:00:00Z"}
 ```
 
 ### Docker
@@ -126,24 +136,38 @@ Two interactive API reference UIs are available in development mode:
 | Tool | URL | Description |
 |------|-----|-------------|
 | **Swagger UI** | `http://localhost:5107/swagger` | Classic Swagger interface (OAuth2 enabled) |
-| **Scalar** | `http://localhost:5107/scalar` | Modern, feature-rich interface |
-
-Both read from the same OpenAPI spec at `/openapi/v1.json`.
+| **Scalar** | `http://localhost:5107/scalar/v1` | Modern, feature-rich interface |
+| **OpenAPI** | `http://localhost:5107/openapi/v1.json` | Raw OpenAPI 3.1 spec |
 
 ---
 
-## Authentication
+## Security
 
-SIGMA uses a **Two-App Registration** model (see [full authentication docs](docs/authentication.md)):
+| Layer | Implementation |
+|-------|---------------|
+| **Authentication** | Microsoft.Identity.Web JWT Bearer (Two-App Registration) |
+| **Authorization** | `DelegatedUserPolicy` (read), `SensitiveSelfServicePolicy` (write) |
+| **Rate Limiting** | Fixed window per user (120 req/min), configurable |
+| **CORS** | Configurable allowed origins (default: localhost:3000) |
+| **Headers** | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `X-XSS-Protection`, `Cache-Control` |
+| **HTTPS** | HSTS + redirect (non-Development) |
+| **Secrets** | `appsettings.Local.json` (gitignored), never committed |
+| **Circuit Breaker** | Polly v8 — opens after 50% failure rate, 30s cooldown |
+| **Response Compression** | Brotli/deflate enabled for HTTPS |
 
-| Component | App Registration | Purpose |
-|-----------|----------------|---------|
-| **API** | `SIGMA-Api` | Validates JWT, calls Microsoft Graph |
-| **Client** | `SIGMA-Web` | Signs in users, obtains delegated tokens |
+---
 
-**Authorization policy:** `DelegatedUserPolicy` requires:
-- `access_as_user` scope in the JWT
-- `oid` (object ID) claim present
+## Performance
+
+| Optimization | Impact |
+|-------------|--------|
+| **Graph $batch** | 20x fewer API calls for user/owner counts |
+| **SemaphoreSlim** | Caps concurrent Graph API calls at 10 |
+| **Parallel Enrichment** | `Task.WhenAll` for credential + assignment checks |
+| **Output Caching** | 60s server-side cache on list endpoints |
+| **Client Cache-Control** | `private, max-age=300` on detail endpoints |
+| **Application Cache** | 60s TTL on `GetServicePrincipalsAsync` |
+| **Response Compression** | Reduces payload size |
 
 ---
 
@@ -155,29 +179,27 @@ SIGMA-Beta/
 │   ├── SIGMA.Api/              # Minimal API endpoints, middleware, auth
 │   ├── SIGMA.Application/      # CQRS handlers, queries, responses
 │   ├── SIGMA.Domain/           # Entities, result pattern, error types
-│   └── SIGMA.Infrastructure/   # Graph REST client, caching, configuration
+│   └── SIGMA.Infrastructure/   # Graph REST client, caching, Polly
 ├── tests/
-│   ├── SIGMA.Application.Tests/    # Unit tests (protocol detectors, governance)
-│   └── SIGMA.Infrastructure.Tests/ # Integration tests (cache providers)
+│   ├── SIGMA.Application.Tests/    # Unit tests (41 tests)
+│   └── SIGMA.Infrastructure.Tests/ # Integration tests (7 tests)
 ├── docs/
 │   ├── architecture.md
 │   ├── api-reference.md
-│   ├── authentication.md       # -> Two-App Registration model
+│   ├── authentication.md
 │   ├── deployment.md
 │   ├── providers.md
 │   └── development.md
 ├── .github/
-│   ├── workflows/ci.yml        # CI pipeline (build, test, audit, secret scan)
-│   ├── ISSUE_TEMPLATE/         # Bug report & feature request
+│   ├── workflows/ci.yml        # CI: build, test, audit, secret scan
+│   ├── ISSUE_TEMPLATE/
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── Dockerfile
 ├── docker-compose.yml
-├── .gitignore
-├── SIGMA.slnx
 ├── CONTRIBUTING.md
 ├── CODE_OF_CONDUCT.md
 ├── SECURITY.md
-├── LICENSE
+├── LICENSE                     # MIT
 └── README.md
 ```
 
@@ -196,6 +218,18 @@ SIGMA-Beta/
 
 ---
 
+## Testing
+
+```bash
+# Run all 48 tests
+dotnet test -c Release
+
+# Run with coverage
+dotnet test -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+```
+
+---
+
 ## Related Projects
 
 | Project | Description |
@@ -206,11 +240,11 @@ SIGMA-Beta/
 
 ## Branching Strategy
 
-**GitHub Flow** -- `main` (protected) + short-lived `feature/*` branches merged via squash PRs.
+**GitHub Flow** — `main` (protected) + short-lived `feature/*` branches merged via squash PRs.
 
 ```
-main ------+---------+---------+---------+
-             \       / \       / \       /
+main ───────+──────────+──────────+──────────+
+             \        / \        / \        /
               feature/  feature/  fix/
               users     groups    pagination
 ```

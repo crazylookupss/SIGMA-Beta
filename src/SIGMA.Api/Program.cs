@@ -242,7 +242,13 @@ app.Use(async (context, next) =>
     context.Response.Headers.TryAdd("Referrer-Policy", "no-referrer");
     context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     context.Response.Headers.TryAdd("X-XSS-Protection", "0");
-    context.Response.Headers.TryAdd("Cache-Control", "no-store");
+
+    var cachedAttr = context.GetEndpoint()?.Metadata.GetMetadata<CachedAttribute>();
+    if (cachedAttr is not null)
+        context.Response.Headers.TryAdd("Cache-Control", $"private, max-age={cachedAttr.MaxAgeSeconds}");
+    else
+        context.Response.Headers.TryAdd("Cache-Control", "no-store");
+
     await next();
 });
 

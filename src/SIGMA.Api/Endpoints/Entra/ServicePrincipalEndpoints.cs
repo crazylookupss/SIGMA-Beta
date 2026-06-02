@@ -5,6 +5,7 @@ using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipalProx
 using SIGMA.Application.Features.Entra.ServicePrincipals.ListServicePrincipals;
 using SIGMA.Application.Features.Entra.ServicePrincipals.GetServicePrincipalDashboard;
 using SIGMA.Application.Features.ProtocolAnalysis.Queries.GetProtocolAnalysis;
+using SIGMA.Api.Middleware;
 using SIGMA.Domain.Common;
 
 namespace SIGMA.Api.Endpoints.Entra;
@@ -53,7 +54,8 @@ internal static class ServicePrincipalEndpoints
         .WithName("GetServicePrincipal")
         .WithTags("Entra Service Principals")
         .WithSummary("Get Entra ID service principal by ID")
-        .WithDescription("Returns details of a specific service principal from Microsoft Entra ID.");
+        .WithDescription("Returns details of a specific service principal from Microsoft Entra ID.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/service-principals/{id}/application", async (
             string id,
@@ -84,7 +86,8 @@ internal static class ServicePrincipalEndpoints
         .WithName("GetServicePrincipalAssignments")
         .WithTags("Entra Service Principals")
         .WithSummary("Get user/group assignments for a service principal")
-        .WithDescription("Returns a list of users and groups assigned to this enterprise application.");
+        .WithDescription("Returns a list of users and groups assigned to this enterprise application.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/service-principals/{id}/owners", async (
             string id,
@@ -97,7 +100,8 @@ internal static class ServicePrincipalEndpoints
         .WithName("GetServicePrincipalOwners")
         .WithTags("Entra Service Principals")
         .WithSummary("Get owners of a service principal")
-        .WithDescription("Returns the owners of this enterprise application.");
+        .WithDescription("Returns the owners of this enterprise application.")
+        .WithMetadata(new CachedAttribute(300));
 
         group.MapGet("/service-principals/{id}/sso-config", async (
             string id,
