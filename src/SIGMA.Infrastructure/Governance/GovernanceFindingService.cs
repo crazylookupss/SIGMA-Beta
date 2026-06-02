@@ -12,6 +12,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
     private readonly ICacheProvider _cache;
     private readonly ILogger<GovernanceFindingService> _logger;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(2);
+    private static readonly SemaphoreSlim Throttle = new(10, 10);
 
     private const int MaxEntitiesPerScan = 500;
 
@@ -58,16 +59,26 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
             for (var i = 0; i < appList.Count; i += credentialBatchSize)
             {
                 var batch = appList.Skip(i).Take(credentialBatchSize).ToList();
-                var credentialTasks = batch.Select(app =>
-                    _graphClient.GetApplicationCredentialsAsync(app.Id, ct)
-                        .ContinueWith(t => (App: app, Creds: t.IsCompletedSuccessfully ? t.Result : default), ct));
-
-                await Task.WhenAll(credentialTasks);
-
-                foreach (var task in credentialTasks)
+                var credentialTasks = batch.Select(async app =>
                 {
-                    var app = task.Result.App;
-                    var creds = task.Result.Creds;
+                    await Throttle.WaitAsync(ct);
+                    try
+                    {
+                        var creds = await _graphClient.GetApplicationCredentialsAsync(app.Id, ct);
+                        return (App: app, Creds: creds);
+                    }
+                    finally
+                    {
+                        Throttle.Release();
+                    }
+                });
+
+                var results = await Task.WhenAll(credentialTasks);
+
+                foreach (var result in results)
+                {
+                    var app = result.App;
+                    var creds = result.Creds;
 
                     // Ownerless applications
                     if ((app.OwnersCount ?? 0) == 0)

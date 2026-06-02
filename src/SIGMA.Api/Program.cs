@@ -52,29 +52,25 @@ var allowedOrigins = builder.Configuration
     .ToArray()
     ?? ["http://localhost:3000", "http://localhost:3001", "https://localhost:3000"];
 
-const string SignalRScheme = JwtBearerDefaults.AuthenticationScheme + "_SignalR";
-
 // Configure JWT Bearer authentication via Microsoft.Identity.Web
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
-builder.Services.AddAuthentication()
-    .AddJwtBearer(SignalRScheme, options =>
+builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    var existingOnMessageReceived = options.Events.OnMessageReceived;
+    options.Events.OnMessageReceived = async context =>
     {
-        builder.Configuration.Bind("AzureAd", options);
-        options.Events.OnMessageReceived = context =>
+        await existingOnMessageReceived(context);
+        var accessToken = context.Request.Query["access_token"].FirstOrDefault();
+        var path = context.HttpContext.Request.Path;
+
+        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/sigma"))
         {
-            var accessToken = context.Request.Query["access_token"].FirstOrDefault();
-            var path = context.HttpContext.Request.Path;
-
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/sigma"))
-            {
-                context.Token = accessToken;
-            }
-
-            return Task.CompletedTask;
-        };
-    });
+            context.Token = accessToken;
+        }
+    };
+});
 
 // DelegatedUserPolicy: requires a user-delegated token with access_as_user scope
 builder.Services.AddAuthorization(options =>
@@ -291,10 +287,6 @@ var governance = api.MapGroup("").RequireAuthorization("DelegatedUserPolicy");
 governance.MapGovernanceEndpoints();
 
 app.MapHub<SigmaHub>("/hubs/sigma")
-    .RequireAuthorization(new AuthorizeAttribute
-    {
-        AuthenticationSchemes = SignalRScheme,
-        Policy = "DelegatedUserPolicy"
-    });
+    .RequireAuthorization("DelegatedUserPolicy");
 
 app.Run();

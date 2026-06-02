@@ -29,7 +29,7 @@ internal static class ApplicationEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(query, ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("ListApplications")
         .CacheOutput(options => options.Expire(TimeSpan.FromSeconds(60)).Tag("applications"))
@@ -45,7 +45,7 @@ internal static class ApplicationEndpoints
         {
             var query = new GetApplicationQuery(id, select);
             var result = await dispatcher.Send(query, ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetApplication")
         .WithTags("Entra Applications")
@@ -181,36 +181,5 @@ internal static class ApplicationEndpoints
         .WithDescription("Returns the first matching enterprise application (service principal) linked to this app registration.");
 
         return group;
-    }
-
-    private static IResult ToResult<T>(Result<T> result)
-    {
-        if (result.IsSuccess)
-            return result.Value is null
-                ? Results.NotFound(new { title = "Not Found", status = 404 })
-                : Results.Ok(new { data = result.Value });
-
-        return result.Error!.Type switch
-        {
-            ErrorType.NotFound => Results.NotFound(new
-            {
-                type = "https://tools.ietf.org/html/rfc9457",
-                title = result.Error.Code,
-                status = 404,
-                detail = result.Error.Description,
-            }),
-            ErrorType.Validation => Results.BadRequest(new
-            {
-                type = "https://tools.ietf.org/html/rfc9457",
-                title = result.Error.Code,
-                status = 400,
-                detail = result.Error.Description,
-            }),
-            ErrorType.ExternalService => Results.StatusCode(502),
-            _ => Results.Problem(
-                title: result.Error.Code,
-                detail: result.Error.Description,
-                statusCode: 500),
-        };
     }
 }
