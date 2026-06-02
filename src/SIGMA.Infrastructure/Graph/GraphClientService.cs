@@ -278,58 +278,16 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
     private async Task<EntraServicePrincipal> EnrichServicePrincipalAsync(EntraServicePrincipal sp, CancellationToken ct)
     {
         var usersCount = 0;
-        try
-        {
-            var url = $"servicePrincipals/{Uri.EscapeDataString(sp.Id)}/appRoleAssignedTo?$count=true&$top=1";
-            var response = await SendGetAsync(url, ct, eventualConsistency: true);
-            if (response.IsSuccessStatusCode)
-            {
-                var wrapper = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<object>>(JsonOptions, ct);
-                usersCount = wrapper?.OdataCount ?? 0;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to enrich service principal {SpId} with assignment count", sp.Id);
-        }
-
         var hasExpiringKeys = false;
-        try
-        {
-            var url = $"servicePrincipals/{Uri.EscapeDataString(sp.Id)}?$select=keyCredentials,passwordCredentials";
-            var response = await SendGetAsync(url, ct);
-            if (response.IsSuccessStatusCode)
-            {
-                var creds = await response.Content.ReadFromJsonAsync<GraphServicePrincipalCredentialsDto>(JsonOptions, ct);
-                var now = DateTimeOffset.UtcNow;
-                if (creds?.KeyCredentials != null)
-                {
-                    foreach (var key in creds.KeyCredentials)
-                    {
-                        if (key.EndDateTime.HasValue && key.EndDateTime.Value < now.AddDays(30))
-                        {
-                            hasExpiringKeys = true;
-                            break;
-                        }
-                    }
-                }
-                if (!hasExpiringKeys && creds?.PasswordCredentials != null)
-                {
-                    foreach (var pw in creds.PasswordCredentials)
-                    {
-                        if (pw.EndDateTime.HasValue && pw.EndDateTime.Value < now.AddDays(30))
-                        {
-                            hasExpiringKeys = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to check credential expiry for service principal {SpId}", sp.Id);
-        }
+
+        // Fire both HTTP calls in parallel
+        var assignmentCountTask = GetAssignmentCountAsync(sp.Id, ct);
+        var credentialHealthTask = GetCredentialHealthAsync(sp.Id, ct);
+
+        await Task.WhenAll(assignmentCountTask, credentialHealthTask);
+
+        usersCount = await assignmentCountTask;
+        hasExpiringKeys = await credentialHealthTask;
 
         var status = "Active";
         if (sp.AccountEnabled == false)
@@ -351,6 +309,60 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             SignInStatus = status,
             LastSignIn = lastSignIn
         };
+    }
+
+    private async Task<int> GetAssignmentCountAsync(string spId, CancellationToken ct)
+    {
+        try
+        {
+            var url = $"servicePrincipals/{Uri.EscapeDataString(spId)}/appRoleAssignedTo?$count=true&$top=1";
+            var response = await SendGetAsync(url, ct, eventualConsistency: true);
+            if (response.IsSuccessStatusCode)
+            {
+                var wrapper = await response.Content.ReadFromJsonAsync<GraphCollectionWrapper<object>>(JsonOptions, ct);
+                return wrapper?.OdataCount ?? 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get assignment count for service principal {SpId}", spId);
+        }
+        return 0;
+    }
+
+    private async Task<bool> GetCredentialHealthAsync(string spId, CancellationToken ct)
+    {
+        try
+        {
+            var url = $"servicePrincipals/{Uri.EscapeDataString(spId)}?$select=keyCredentials,passwordCredentials";
+            var response = await SendGetAsync(url, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                var creds = await response.Content.ReadFromJsonAsync<GraphServicePrincipalCredentialsDto>(JsonOptions, ct);
+                var now = DateTimeOffset.UtcNow;
+                if (creds?.KeyCredentials != null)
+                {
+                    foreach (var key in creds.KeyCredentials)
+                    {
+                        if (key.EndDateTime.HasValue && key.EndDateTime.Value < now.AddDays(30))
+                            return true;
+                    }
+                }
+                if (creds?.PasswordCredentials != null)
+                {
+                    foreach (var pw in creds.PasswordCredentials)
+                    {
+                        if (pw.EndDateTime.HasValue && pw.EndDateTime.Value < now.AddDays(30))
+                            return true;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check credential expiry for service principal {SpId}", spId);
+        }
+        return false;
     }
 
     /// <summary>

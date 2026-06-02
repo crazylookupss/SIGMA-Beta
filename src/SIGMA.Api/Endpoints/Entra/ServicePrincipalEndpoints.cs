@@ -18,7 +18,7 @@ internal static class ServicePrincipalEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetServicePrincipalDashboardQuery(), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetServicePrincipalDashboard")
         .WithTags("Entra Service Principals")
@@ -32,7 +32,7 @@ internal static class ServicePrincipalEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(query, ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("ListServicePrincipals")
         .WithTags("Entra Service Principals")
@@ -48,7 +48,7 @@ internal static class ServicePrincipalEndpoints
         {
             var query = new GetServicePrincipalQuery(id, select);
             var result = await dispatcher.Send(query, ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetServicePrincipal")
         .WithTags("Entra Service Principals")
@@ -66,7 +66,7 @@ internal static class ServicePrincipalEndpoints
                 return Results.NotFound(new { title = "Not Found", status = 404 });
 
             var appResult = await graphClient.GetApplicationByAppIdAsync(spResult.Value.AppId, ct);
-            return ToResult(appResult);
+            return ResultMapper.ToResult(appResult);
         })
         .WithName("GetServicePrincipalApplication")
         .WithTags("Entra Service Principals")
@@ -105,7 +105,7 @@ internal static class ServicePrincipalEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetServicePrincipalSsoConfigQuery(id), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetServicePrincipalSsoConfig")
         .WithTags("Entra Service Principals")
@@ -118,7 +118,7 @@ internal static class ServicePrincipalEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetServicePrincipalProxyConfigQuery(id), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetServicePrincipalProxyConfiguration")
         .WithTags("Entra Service Principals")
@@ -131,7 +131,7 @@ internal static class ServicePrincipalEndpoints
             CancellationToken ct) =>
         {
             var result = await dispatcher.Send(new GetProtocolAnalysisQuery(id), ct);
-            return ToResult(result);
+            return ResultMapper.ToResult(result);
         })
         .WithName("GetServicePrincipalProtocolAnalysis")
         .WithTags("Entra Service Principals")
@@ -157,36 +157,5 @@ internal static class ServicePrincipalEndpoints
         .WithDescription("Returns recent sign-in activity for this enterprise application (requires P1/P2 license).");
 
         return group;
-    }
-
-    private static IResult ToResult<T>(Result<T> result)
-    {
-        if (result.IsSuccess)
-            return result.Value is null
-                ? Results.NotFound(new { title = "Not Found", status = 404 })
-                : Results.Ok(new { data = result.Value });
-
-        return result.Error!.Type switch
-        {
-            ErrorType.NotFound => Results.NotFound(new
-            {
-                type = "https://tools.ietf.org/html/rfc9457",
-                title = result.Error.Code,
-                status = 404,
-                detail = result.Error.Description,
-            }),
-            ErrorType.Validation => Results.BadRequest(new
-            {
-                type = "https://tools.ietf.org/html/rfc9457",
-                title = result.Error.Code,
-                status = 400,
-                detail = result.Error.Description,
-            }),
-            ErrorType.ExternalService => Results.StatusCode(502),
-            _ => Results.Problem(
-                title: result.Error.Code,
-                detail: result.Error.Description,
-                statusCode: 500),
-        };
     }
 }

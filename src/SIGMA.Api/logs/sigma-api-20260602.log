@@ -1,0 +1,707 @@
+2026-06-02 02:33:16.283 +05:30 [ERR] Hosting failed to start
+System.IO.DirectoryNotFoundException: Could not find a part of the path 'D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Api\certs\https.pfx'.
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.FileStreamHelpers.ChooseStrategyCore(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.StreamReader.ValidateArgsAndOpenPath(String path, Int32 bufferSize)
+   at System.IO.File.ReadAllText(String path, Encoding encoding)
+   at System.Security.Cryptography.X509Certificates.X509Certificate2Collection.ImportFromPemFile(String certPemFilePath)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Certificates.CertificateConfigLoader.LoadCertificate(CertificateConfig certInfo, String endpointName)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.TlsConfigurationLoader.LoadDefaultCertificate(ConfigurationReader configurationReader)
+   at Microsoft.AspNetCore.Server.Kestrel.KestrelConfigurationLoader.Reload()
+   at Microsoft.AspNetCore.Server.Kestrel.KestrelConfigurationLoader.LoadInternal()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+2026-06-02 02:49:59.529 +05:30 [WRN] Overriding address(es) 'http://0.0.0.0:5107'. Binding to endpoints defined via IConfiguration and/or UseKestrel() instead.
+2026-06-02 02:49:59.771 +05:30 [INF] Now listening on: http://0.0.0.0:5107
+2026-06-02 02:50:00.203 +05:30 [INF] Application started. Press Ctrl+C to shut down.
+2026-06-02 02:50:00.340 +05:30 [INF] Hosting environment: Development
+2026-06-02 02:50:00.437 +05:30 [INF] Content root path: D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Api
+2026-06-02 02:50:02.009 +05:30 [INF] Request: GET /swagger/index.html responded 304 in 268ms
+2026-06-02 02:50:02.886 +05:30 [INF] Request: GET /swagger/index.css responded 304 in 37ms
+2026-06-02 02:50:02.912 +05:30 [INF] Request: GET /swagger/swagger-ui.css responded 304 in 63ms
+2026-06-02 02:50:03.105 +05:30 [INF] Request: GET /swagger/swagger-ui-bundle.js responded 304 in 50ms
+2026-06-02 02:50:03.278 +05:30 [INF] Request: GET /swagger/index.js responded 304 in 0ms
+2026-06-02 02:50:03.333 +05:30 [INF] Request: GET /swagger/swagger-ui-standalone-preset.js responded 304 in 78ms
+2026-06-02 02:50:04.361 +05:30 [INF] Request: GET /swagger/favicon-32x32.png responded 304 in 0ms
+2026-06-02 02:50:05.718 +05:30 [INF] Request: GET /openapi/v1.json responded 200 in 1625ms
+2026-06-02 02:52:28.184 +05:30 [INF] Request: OPTIONS /hubs/sigma/negotiate responded 204 in 4ms
+2026-06-02 02:52:30.786 +05:30 [INF] Microsoft.IdentityModel Version: 8.18.0.0. Date 06/01/2026 21:22:30. PII logging is OFF. See https://aka.ms/IdentityModel/PII for details. 
+IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:52:30.786 +05:30 [INF] Microsoft.IdentityModel Version: 8.18.0.0. Date 06/01/2026 21:22:30. PII logging is OFF. See https://aka.ms/IdentityModel/PII for details. 
+IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:52:30.832 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:52:30.832 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:52:30.857 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:52:30.857 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:52:31.464 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:52:31.464 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:52:31.916 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:52:31.939 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:52:31.950 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:52:31.965 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:52:32.000 +05:30 [WRN] Slow request: POST /hubs/sigma/negotiate responded 401 in 3800ms
+2026-06-02 02:52:37.348 +05:30 [INF] Request: OPTIONS /hubs/sigma/negotiate responded 204 in 0ms
+2026-06-02 02:52:37.691 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:52:37.711 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:52:37.723 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:52:37.745 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:52:37.771 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:52:37.784 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:52:37.799 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:52:37.819 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:52:37.837 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/organization
+2026-06-02 02:52:37.853 +05:30 [INF] Request: POST /hubs/sigma/negotiate responded 401 in 163ms
+2026-06-02 02:52:37.867 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/organization
+2026-06-02 02:52:38.321 +05:30 [INF] Received HTTP response headers after 414.7901ms - 200
+2026-06-02 02:52:38.353 +05:30 [INF] End processing HTTP request after 525.9022ms - 200
+2026-06-02 02:52:38.803 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/users?*
+2026-06-02 02:52:38.822 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/users?*
+2026-06-02 02:52:38.847 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/groups?*
+2026-06-02 02:52:38.869 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/groups?*
+2026-06-02 02:52:38.884 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications?*
+2026-06-02 02:52:38.920 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications?*
+2026-06-02 02:52:38.969 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/servicePrincipals?*
+2026-06-02 02:52:39.008 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/servicePrincipals?*
+2026-06-02 02:52:39.075 +05:30 [INF] Received HTTP response headers after 231.2422ms - 200
+2026-06-02 02:52:39.140 +05:30 [INF] End processing HTTP request after 338.3137ms - 200
+2026-06-02 02:52:39.120 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/devices?*
+2026-06-02 02:52:39.185 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/devices?*
+2026-06-02 02:52:39.142 +05:30 [INF] Received HTTP response headers after 258.39ms - 200
+2026-06-02 02:52:39.253 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/subscribedSkus
+2026-06-02 02:52:39.295 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/subscribedSkus
+2026-06-02 02:52:39.278 +05:30 [INF] End processing HTTP request after 431.431ms - 200
+2026-06-02 02:52:39.321 +05:30 [INF] Received HTTP response headers after 352.9928ms - 200
+2026-06-02 02:52:39.375 +05:30 [INF] Received HTTP response headers after 255.4955ms - 200
+2026-06-02 02:52:39.408 +05:30 [INF] End processing HTTP request after 524.0569ms - 200
+2026-06-02 02:52:39.428 +05:30 [INF] End processing HTTP request after 459.1119ms - 200
+2026-06-02 02:52:39.483 +05:30 [INF] Received HTTP response headers after 149.57ms - 200
+2026-06-02 02:52:39.516 +05:30 [INF] End processing HTTP request after 262.7295ms - 200
+2026-06-02 02:52:39.532 +05:30 [INF] Received HTTP response headers after 279.9109ms - 200
+2026-06-02 02:52:39.560 +05:30 [INF] End processing HTTP request after 439.3074ms - 200
+2026-06-02 02:52:39.764 +05:30 [WRN] Slow request: GET /api/v1/entra/tenant responded 200 in 11929ms
+2026-06-02 02:52:48.333 +05:30 [INF] Request: OPTIONS /hubs/sigma/negotiate responded 204 in 0ms
+2026-06-02 02:52:48.390 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:52:48.401 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:52:48.412 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:52:48.421 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:52:48.437 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:52:48.455 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:52:48.471 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:52:48.487 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:52:48.538 +05:30 [INF] Request: POST /hubs/sigma/negotiate responded 401 in 149ms
+2026-06-02 02:53:09.340 +05:30 [INF] Request: OPTIONS /hubs/sigma/negotiate responded 204 in 0ms
+2026-06-02 02:53:09.357 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:53:09.383 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:53:09.393 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:53:09.403 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:53:09.414 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:53:09.428 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:53:09.436 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:53:09.444 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:53:09.453 +05:30 [INF] Request: POST /hubs/sigma/negotiate responded 401 in 98ms
+2026-06-02 02:53:50.507 +05:30 [INF] Request: OPTIONS /hubs/sigma/negotiate responded 204 in 1ms
+2026-06-02 02:53:50.563 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:53:50.581 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:53:50.590 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:53:50.600 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:53:50.610 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:53:50.639 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:53:50.652 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:53:50.670 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:53:50.690 +05:30 [INF] Request: POST /hubs/sigma/negotiate responded 401 in 132ms
+2026-06-02 02:53:52.964 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:53:52.975 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:53:52.985 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:53:52.997 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:53:53.582 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/users?*
+2026-06-02 02:53:53.602 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/users?*
+2026-06-02 02:53:53.931 +05:30 [INF] Received HTTP response headers after 315.4756ms - 200
+2026-06-02 02:53:53.962 +05:30 [INF] End processing HTTP request after 379.9923ms - 200
+2026-06-02 02:53:54.298 +05:30 [INF] Request: GET /api/v1/entra/users responded 200 in 1334ms
+2026-06-02 02:54:50.096 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:54:50.112 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:54:50.245 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:54:50.377 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:54:50.396 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:54:50.422 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:54:50.441 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:54:50.461 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:54:50.576 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/servicePrincipals?*
+2026-06-02 02:54:50.576 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/servicePrincipals?*
+2026-06-02 02:54:51.143 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/servicePrincipals?*
+2026-06-02 02:54:51.036 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/servicePrincipals?*
+2026-06-02 02:54:51.376 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/auditLogs/signIns?*
+2026-06-02 02:54:51.591 +05:30 [INF] Request: OPTIONS /hubs/sigma/negotiate responded 204 in 0ms
+2026-06-02 02:54:51.754 +05:30 [INF] Received HTTP response headers after 410.4222ms - 200
+2026-06-02 02:54:51.947 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/auditLogs/signIns?*
+2026-06-02 02:54:51.960 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:54:52.005 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:54:51.979 +05:30 [INF] End processing HTTP request after 1403.359ms - 200
+2026-06-02 02:54:52.015 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:54:52.099 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:54:52.119 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:54:52.135 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:54:52.149 +05:30 [INF] Start processing HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:54:52.149 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:54:52.163 +05:30 [INF] Sending HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:54:52.172 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:54:52.205 +05:30 [INF] Request: POST /hubs/sigma/negotiate responded 401 in 245ms
+2026-06-02 02:54:52.283 +05:30 [INF] Received HTTP response headers after 360.369ms - 200
+2026-06-02 02:54:52.300 +05:30 [INF] End processing HTTP request after 1724.2007ms - 200
+2026-06-02 02:54:52.307 +05:30 [INF] Received HTTP response headers after 121.1144ms - 200
+2026-06-02 02:54:52.339 +05:30 [INF] Start processing HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:54:52.340 +05:30 [INF] End processing HTTP request after 191.2526ms - 200
+2026-06-02 02:54:52.360 +05:30 [INF] Sending HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:54:52.507 +05:30 [INF] Received HTTP response headers after 112.7188ms - 200
+2026-06-02 02:54:52.526 +05:30 [INF] End processing HTTP request after 187.3375ms - 200
+2026-06-02 02:54:52.635 +05:30 [INF] Received HTTP response headers after 641.9705ms - 403
+2026-06-02 02:54:52.654 +05:30 [INF] End processing HTTP request after 1277.8603ms - 403
+2026-06-02 02:54:53.644 +05:30 [WRN] Failed to batch-fetch user counts for service principals
+System.Text.Json.JsonException: The JSON value could not be converted to System.String. Path: $.responses[0].body | LineNumber: 0 | BytePositionInLine: 144.
+ ---> System.InvalidOperationException: Cannot get the value of a token type 'StartObject' as a string.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedString(JsonTokenType tokenType)
+   at System.Text.Json.Utf8JsonReader.GetString()
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, Utf8JsonReader& reader, Exception ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.ContinueDeserialize[TReadBufferState,TStream](TReadBufferState& bufferState, JsonReaderState& jsonReaderState, ReadStack& readStack, T& value)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.DeserializeAsync[TReadBufferState,TStream](TStream utf8Json, TReadBufferState bufferState, CancellationToken cancellationToken)
+   at System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsyncCore[T](HttpContent content, JsonSerializerOptions options, CancellationToken cancellationToken)
+   at SIGMA.Infrastructure.Graph.GraphClientService.BatchGetUserCountsAsync(List`1 spIds, CancellationToken ct) in D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Infrastructure\Graph\GraphClientService.cs:line 440
+2026-06-02 02:54:53.875 +05:30 [WRN] Failed to batch-fetch user counts for service principals
+System.Text.Json.JsonException: The JSON value could not be converted to System.String. Path: $.responses[0].body | LineNumber: 0 | BytePositionInLine: 145.
+ ---> System.InvalidOperationException: Cannot get the value of a token type 'StartObject' as a string.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedString(JsonTokenType tokenType)
+   at System.Text.Json.Utf8JsonReader.GetString()
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, Utf8JsonReader& reader, Exception ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.ContinueDeserialize[TReadBufferState,TStream](TReadBufferState& bufferState, JsonReaderState& jsonReaderState, ReadStack& readStack, T& value)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.DeserializeAsync[TReadBufferState,TStream](TStream utf8Json, TReadBufferState bufferState, CancellationToken cancellationToken)
+   at System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsyncCore[T](HttpContent content, JsonSerializerOptions options, CancellationToken cancellationToken)
+   at SIGMA.Infrastructure.Graph.GraphClientService.BatchGetUserCountsAsync(List`1 spIds, CancellationToken ct) in D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Infrastructure\Graph\GraphClientService.cs:line 440
+2026-06-02 02:54:54.016 +05:30 [INF] Start processing HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:54:54.075 +05:30 [INF] Start processing HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:54:54.128 +05:30 [INF] Sending HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:54:54.161 +05:30 [INF] Sending HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:54:54.310 +05:30 [INF] Received HTTP response headers after 132.7963ms - 200
+2026-06-02 02:54:54.358 +05:30 [INF] Received HTTP response headers after 162.2992ms - 200
+2026-06-02 02:54:54.550 +05:30 [INF] End processing HTTP request after 474.5619ms - 200
+2026-06-02 02:54:54.522 +05:30 [INF] End processing HTTP request after 506.2423ms - 200
+2026-06-02 02:54:55.567 +05:30 [WRN] Failed to batch-fetch user counts for service principals
+System.Text.Json.JsonException: The JSON value could not be converted to System.String. Path: $.responses[0].body | LineNumber: 0 | BytePositionInLine: 144.
+ ---> System.InvalidOperationException: Cannot get the value of a token type 'StartObject' as a string.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedString(JsonTokenType tokenType)
+   at System.Text.Json.Utf8JsonReader.GetString()
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, Utf8JsonReader& reader, Exception ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.ContinueDeserialize[TReadBufferState,TStream](TReadBufferState& bufferState, JsonReaderState& jsonReaderState, ReadStack& readStack, T& value)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.DeserializeAsync[TReadBufferState,TStream](TStream utf8Json, TReadBufferState bufferState, CancellationToken cancellationToken)
+   at System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsyncCore[T](HttpContent content, JsonSerializerOptions options, CancellationToken cancellationToken)
+   at SIGMA.Infrastructure.Graph.GraphClientService.BatchGetUserCountsAsync(List`1 spIds, CancellationToken ct) in D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Infrastructure\Graph\GraphClientService.cs:line 440
+2026-06-02 02:54:56.699 +05:30 [WRN] Failed to batch-fetch user counts for service principals
+System.Text.Json.JsonException: The JSON value could not be converted to System.String. Path: $.responses[0].body | LineNumber: 0 | BytePositionInLine: 144.
+ ---> System.InvalidOperationException: Cannot get the value of a token type 'StartObject' as a string.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedString(JsonTokenType tokenType)
+   at System.Text.Json.Utf8JsonReader.GetString()
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, Utf8JsonReader& reader, Exception ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.ContinueDeserialize[TReadBufferState,TStream](TReadBufferState& bufferState, JsonReaderState& jsonReaderState, ReadStack& readStack, T& value)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.DeserializeAsync[TReadBufferState,TStream](TStream utf8Json, TReadBufferState bufferState, CancellationToken cancellationToken)
+   at System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsyncCore[T](HttpContent content, JsonSerializerOptions options, CancellationToken cancellationToken)
+   at SIGMA.Infrastructure.Graph.GraphClientService.BatchGetUserCountsAsync(List`1 spIds, CancellationToken ct) in D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Infrastructure\Graph\GraphClientService.cs:line 440
+2026-06-02 02:54:56.763 +05:30 [WRN] Slow request: GET /api/v1/entra/service-principals responded 200 in 6668ms
+2026-06-02 02:54:56.809 +05:30 [WRN] Slow request: GET /api/v1/entra/service-principals/dashboard responded 200 in 6697ms
+2026-06-02 02:55:52.361 +05:30 [INF] Request: OPTIONS /hubs/sigma/negotiate responded 204 in 0ms
+2026-06-02 02:55:52.386 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:55:52.407 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:55:52.420 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:55:52.429 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:55:52.463 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:55:52.488 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:55:52.521 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:55:52.542 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:55:52.559 +05:30 [INF] Request: POST /hubs/sigma/negotiate responded 401 in 174ms
+2026-06-02 02:55:54.053 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:55:54.085 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:55:54.132 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:55:54.145 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:55:54.203 +05:30 [INF] [Governance] Fetching applications from Graph...
+2026-06-02 02:55:54.219 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications?*
+2026-06-02 02:55:54.248 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications?*
+2026-06-02 02:55:54.455 +05:30 [INF] Received HTTP response headers after 186.6366ms - 200
+2026-06-02 02:55:54.486 +05:30 [INF] End processing HTTP request after 267.1046ms - 200
+2026-06-02 02:55:54.686 +05:30 [INF] Start processing HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:55:54.702 +05:30 [INF] Sending HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:55:54.823 +05:30 [INF] Received HTTP response headers after 104.8744ms - 200
+2026-06-02 02:55:54.853 +05:30 [INF] End processing HTTP request after 167.4498ms - 200
+2026-06-02 02:55:55.765 +05:30 [WRN] Failed to batch-fetch owner counts for applications
+System.Text.Json.JsonException: The JSON value could not be converted to System.String. Path: $.responses[0].body | LineNumber: 0 | BytePositionInLine: 120.
+ ---> System.InvalidOperationException: Cannot get the value of a token type 'StartObject' as a string.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedString(JsonTokenType tokenType)
+   at System.Text.Json.Utf8JsonReader.GetString()
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, Utf8JsonReader& reader, Exception ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.ContinueDeserialize[TReadBufferState,TStream](TReadBufferState& bufferState, JsonReaderState& jsonReaderState, ReadStack& readStack, T& value)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.DeserializeAsync[TReadBufferState,TStream](TStream utf8Json, TReadBufferState bufferState, CancellationToken cancellationToken)
+   at System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsyncCore[T](HttpContent content, JsonSerializerOptions options, CancellationToken cancellationToken)
+   at SIGMA.Infrastructure.Graph.GraphClientService.BatchGetApplicationOwnerCountsAsync(List`1 appIds, CancellationToken ct) in D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Infrastructure\Graph\GraphClientService.cs:line 534
+2026-06-02 02:55:55.800 +05:30 [INF] Start processing HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:55:55.820 +05:30 [INF] Sending HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:55:55.945 +05:30 [INF] Received HTTP response headers after 106.2443ms - 200
+2026-06-02 02:55:55.968 +05:30 [INF] End processing HTTP request after 168.0911ms - 200
+2026-06-02 02:55:56.937 +05:30 [WRN] Failed to batch-fetch owner counts for applications
+System.Text.Json.JsonException: The JSON value could not be converted to System.String. Path: $.responses[0].body | LineNumber: 0 | BytePositionInLine: 119.
+ ---> System.InvalidOperationException: Cannot get the value of a token type 'StartObject' as a string.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedString(JsonTokenType tokenType)
+   at System.Text.Json.Utf8JsonReader.GetString()
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, Utf8JsonReader& reader, Exception ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.ContinueDeserialize[TReadBufferState,TStream](TReadBufferState& bufferState, JsonReaderState& jsonReaderState, ReadStack& readStack, T& value)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.DeserializeAsync[TReadBufferState,TStream](TStream utf8Json, TReadBufferState bufferState, CancellationToken cancellationToken)
+   at System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsyncCore[T](HttpContent content, JsonSerializerOptions options, CancellationToken cancellationToken)
+   at SIGMA.Infrastructure.Graph.GraphClientService.BatchGetApplicationOwnerCountsAsync(List`1 appIds, CancellationToken ct) in D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Infrastructure\Graph\GraphClientService.cs:line 534
+2026-06-02 02:55:57.086 +05:30 [INF] [Governance] Applications result: IsSuccess=true, Error=null
+2026-06-02 02:55:57.110 +05:30 [INF] [Governance] Processing 35 applications...
+2026-06-02 02:55:57.171 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/0bbdd90f-39c8-4fa3-9b4b-1b2df842c658?*
+2026-06-02 02:55:57.192 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/0bbdd90f-39c8-4fa3-9b4b-1b2df842c658?*
+2026-06-02 02:55:57.226 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/16390064-665b-46a7-bf00-af9438733c68?*
+2026-06-02 02:55:57.264 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/16390064-665b-46a7-bf00-af9438733c68?*
+2026-06-02 02:55:57.285 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/168fff38-fb94-4f20-a935-4a12865d277e?*
+2026-06-02 02:55:57.303 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/168fff38-fb94-4f20-a935-4a12865d277e?*
+2026-06-02 02:55:57.321 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/18683323-1182-42dc-83a1-1679ef2d8ccb?*
+2026-06-02 02:55:57.341 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/18683323-1182-42dc-83a1-1679ef2d8ccb?*
+2026-06-02 02:55:57.361 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/1dc3420c-79ee-42ad-821e-832881d1359b?*
+2026-06-02 02:55:57.451 +05:30 [INF] Received HTTP response headers after 166.7971ms - 200
+2026-06-02 02:55:57.397 +05:30 [INF] Received HTTP response headers after 176.6328ms - 200
+2026-06-02 02:55:57.903 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/1dc3420c-79ee-42ad-821e-832881d1359b?*
+2026-06-02 02:55:57.927 +05:30 [INF] End processing HTTP request after 701.7122ms - 200
+2026-06-02 02:55:57.946 +05:30 [INF] End processing HTTP request after 774.7376ms - 200
+2026-06-02 02:55:57.963 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/211fcada-7373-4adb-91cc-0b7fca809a3c?*
+2026-06-02 02:55:58.020 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/211fcada-7373-4adb-91cc-0b7fca809a3c?*
+2026-06-02 02:55:58.035 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/41357df4-0eb4-4cad-830f-c67c331165af?*
+2026-06-02 02:55:58.047 +05:30 [INF] Received HTTP response headers after 686.0486ms - 200
+2026-06-02 02:55:58.050 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/41357df4-0eb4-4cad-830f-c67c331165af?*
+2026-06-02 02:55:58.067 +05:30 [INF] End processing HTTP request after 745.5316ms - 200
+2026-06-02 02:55:58.078 +05:30 [INF] Received HTTP response headers after 758.2278ms - 200
+2026-06-02 02:55:58.083 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/426fdc27-92f9-4ff5-a261-5140585db6db?*
+2026-06-02 02:55:58.117 +05:30 [INF] End processing HTTP request after 831.8696ms - 200
+2026-06-02 02:55:58.132 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/426fdc27-92f9-4ff5-a261-5140585db6db?*
+2026-06-02 02:55:58.150 +05:30 [INF] Received HTTP response headers after 115.7125ms - 200
+2026-06-02 02:55:58.164 +05:30 [INF] Received HTTP response headers after 202.1496ms - 200
+2026-06-02 02:55:58.178 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/457436a9-f6b9-491a-b540-34243534784f?*
+2026-06-02 02:55:58.194 +05:30 [INF] End processing HTTP request after 231.4891ms - 200
+2026-06-02 02:55:58.259 +05:30 [INF] Received HTTP response headers after 176.7894ms - 200
+2026-06-02 02:55:58.323 +05:30 [INF] End processing HTTP request after 961.7933ms - 200
+2026-06-02 02:55:58.342 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/457436a9-f6b9-491a-b540-34243534784f?*
+2026-06-02 02:55:58.374 +05:30 [INF] Received HTTP response headers after 196.108ms - 200
+2026-06-02 02:55:58.391 +05:30 [INF] End processing HTTP request after 355.9934ms - 200
+2026-06-02 02:55:58.435 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/49e2112b-0e2d-4381-b22e-38ca924f0134?*
+2026-06-02 02:55:58.456 +05:30 [INF] End processing HTTP request after 373.199ms - 200
+2026-06-02 02:55:58.561 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/49e2112b-0e2d-4381-b22e-38ca924f0134?*
+2026-06-02 02:55:58.595 +05:30 [INF] Received HTTP response headers after 160.5835ms - 200
+2026-06-02 02:55:58.600 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/49e94653-ce8e-473e-9ac7-8da94b59064b?*
+2026-06-02 02:55:58.617 +05:30 [INF] End processing HTTP request after 438.7127ms - 200
+2026-06-02 02:55:58.634 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/49e94653-ce8e-473e-9ac7-8da94b59064b?*
+2026-06-02 02:55:58.670 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/4d6e78f8-1d50-4982-ad74-f739af798409?*
+2026-06-02 02:55:58.689 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/4d6e78f8-1d50-4982-ad74-f739af798409?*
+2026-06-02 02:55:58.707 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/515206c9-45b1-47c8-990d-9eb4c90f1bc9?*
+2026-06-02 02:55:58.723 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/515206c9-45b1-47c8-990d-9eb4c90f1bc9?*
+2026-06-02 02:55:58.741 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/604d3cea-cc9f-4cec-9767-7b0268a162a6?*
+2026-06-02 02:55:58.757 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/604d3cea-cc9f-4cec-9767-7b0268a162a6?*
+2026-06-02 02:55:58.775 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/68c03ecd-864b-4489-bde4-23da2d863cc9?*
+2026-06-02 02:55:58.792 +05:30 [INF] Received HTTP response headers after 192.7013ms - 200
+2026-06-02 02:55:58.792 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/68c03ecd-864b-4489-bde4-23da2d863cc9?*
+2026-06-02 02:55:58.810 +05:30 [INF] End processing HTTP request after 375.1429ms - 200
+2026-06-02 02:55:58.827 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/742fd072-6b6c-4230-8cf1-6972d7300ad5?*
+2026-06-02 02:55:58.856 +05:30 [INF] Received HTTP response headers after 186.6649ms - 200
+2026-06-02 02:55:58.864 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/742fd072-6b6c-4230-8cf1-6972d7300ad5?*
+2026-06-02 02:55:58.884 +05:30 [INF] End processing HTTP request after 284.1091ms - 200
+2026-06-02 02:55:58.889 +05:30 [INF] Received HTTP response headers after 182.1362ms - 200
+2026-06-02 02:55:58.902 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/76127915-56b3-483b-9d5b-c9f79c5637ff?*
+2026-06-02 02:55:58.930 +05:30 [INF] Received HTTP response headers after 189.769ms - 200
+2026-06-02 02:55:58.951 +05:30 [INF] Received HTTP response headers after 177.01ms - 200
+2026-06-02 02:55:58.964 +05:30 [INF] End processing HTTP request after 293.8349ms - 200
+2026-06-02 02:55:58.980 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/76127915-56b3-483b-9d5b-c9f79c5637ff?*
+2026-06-02 02:55:58.998 +05:30 [INF] End processing HTTP request after 291.1111ms - 200
+2026-06-02 02:55:59.011 +05:30 [INF] Received HTTP response headers after 184.7988ms - 200
+2026-06-02 02:55:59.016 +05:30 [INF] End processing HTTP request after 275.565ms - 200
+2026-06-02 02:55:59.050 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/76521842-1af8-4caf-b658-cc8189f05f86?*
+2026-06-02 02:55:59.082 +05:30 [INF] End processing HTTP request after 307.347ms - 200
+2026-06-02 02:55:59.096 +05:30 [INF] Received HTTP response headers after 194.5924ms - 200
+2026-06-02 02:55:59.121 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/76521842-1af8-4caf-b658-cc8189f05f86?*
+2026-06-02 02:55:59.163 +05:30 [INF] End processing HTTP request after 336.4025ms - 200
+2026-06-02 02:55:59.189 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/83e59e8b-1583-43c5-aab9-2512ca2aec1d?*
+2026-06-02 02:55:59.224 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/83e59e8b-1583-43c5-aab9-2512ca2aec1d?*
+2026-06-02 02:55:59.241 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/860a6e19-3808-4bd0-81d8-e4ccc8d7d780?*
+2026-06-02 02:55:59.257 +05:30 [INF] Received HTTP response headers after 207.2292ms - 200
+2026-06-02 02:55:59.260 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/860a6e19-3808-4bd0-81d8-e4ccc8d7d780?*
+2026-06-02 02:55:59.279 +05:30 [INF] End processing HTTP request after 376.8142ms - 200
+2026-06-02 02:55:59.298 +05:30 [INF] Received HTTP response headers after 110.9922ms - 200
+2026-06-02 02:55:59.331 +05:30 [INF] End processing HTTP request after 281.3515ms - 200
+2026-06-02 02:55:59.351 +05:30 [INF] Received HTTP response headers after 110.4823ms - 200
+2026-06-02 02:55:59.373 +05:30 [INF] End processing HTTP request after 184.577ms - 200
+2026-06-02 02:55:59.489 +05:30 [INF] Received HTTP response headers after 192.0982ms - 200
+2026-06-02 02:55:59.510 +05:30 [INF] End processing HTTP request after 268.859ms - 200
+2026-06-02 02:55:59.529 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/0bbdd90f-39c8-4fa3-9b4b-1b2df842c658?*
+2026-06-02 02:55:59.545 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/0bbdd90f-39c8-4fa3-9b4b-1b2df842c658?*
+2026-06-02 02:55:59.734 +05:30 [INF] Received HTTP response headers after 174.4674ms - 200
+2026-06-02 02:55:59.754 +05:30 [INF] End processing HTTP request after 224.6768ms - 200
+2026-06-02 02:55:59.780 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/16390064-665b-46a7-bf00-af9438733c68?*
+2026-06-02 02:55:59.798 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/16390064-665b-46a7-bf00-af9438733c68?*
+2026-06-02 02:55:59.930 +05:30 [INF] Received HTTP response headers after 114.3743ms - 200
+2026-06-02 02:55:59.953 +05:30 [INF] End processing HTTP request after 172.9756ms - 200
+2026-06-02 02:55:59.979 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/168fff38-fb94-4f20-a935-4a12865d277e?*
+2026-06-02 02:55:59.996 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/168fff38-fb94-4f20-a935-4a12865d277e?*
+2026-06-02 02:56:00.183 +05:30 [INF] Received HTTP response headers after 170.4252ms - 200
+2026-06-02 02:56:00.208 +05:30 [INF] End processing HTTP request after 229.7015ms - 200
+2026-06-02 02:56:00.228 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/18683323-1182-42dc-83a1-1679ef2d8ccb?*
+2026-06-02 02:56:00.245 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/18683323-1182-42dc-83a1-1679ef2d8ccb?*
+2026-06-02 02:56:00.439 +05:30 [INF] Received HTTP response headers after 175.6329ms - 200
+2026-06-02 02:56:00.458 +05:30 [INF] End processing HTTP request after 229.6432ms - 200
+2026-06-02 02:56:00.477 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/1dc3420c-79ee-42ad-821e-832881d1359b?*
+2026-06-02 02:56:00.492 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/1dc3420c-79ee-42ad-821e-832881d1359b?*
+2026-06-02 02:56:00.753 +05:30 [INF] Received HTTP response headers after 246.5029ms - 200
+2026-06-02 02:56:00.775 +05:30 [INF] End processing HTTP request after 298.2319ms - 200
+2026-06-02 02:56:00.792 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/211fcada-7373-4adb-91cc-0b7fca809a3c?*
+2026-06-02 02:56:00.806 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/211fcada-7373-4adb-91cc-0b7fca809a3c?*
+2026-06-02 02:56:01.006 +05:30 [INF] Received HTTP response headers after 186.0059ms - 200
+2026-06-02 02:56:01.028 +05:30 [INF] End processing HTTP request after 236.2352ms - 200
+2026-06-02 02:56:01.049 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/41357df4-0eb4-4cad-830f-c67c331165af?*
+2026-06-02 02:56:01.067 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/41357df4-0eb4-4cad-830f-c67c331165af?*
+2026-06-02 02:56:01.211 +05:30 [INF] Received HTTP response headers after 123.0281ms - 200
+2026-06-02 02:56:01.229 +05:30 [INF] End processing HTTP request after 180.5849ms - 200
+2026-06-02 02:56:01.246 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/426fdc27-92f9-4ff5-a261-5140585db6db?*
+2026-06-02 02:56:01.267 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/426fdc27-92f9-4ff5-a261-5140585db6db?*
+2026-06-02 02:56:01.472 +05:30 [INF] Received HTTP response headers after 187.4437ms - 200
+2026-06-02 02:56:01.490 +05:30 [INF] End processing HTTP request after 244.2708ms - 200
+2026-06-02 02:56:01.508 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/457436a9-f6b9-491a-b540-34243534784f?*
+2026-06-02 02:56:01.523 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/457436a9-f6b9-491a-b540-34243534784f?*
+2026-06-02 02:56:01.720 +05:30 [INF] Received HTTP response headers after 177.3624ms - 200
+2026-06-02 02:56:01.766 +05:30 [INF] End processing HTTP request after 258.4547ms - 200
+2026-06-02 02:56:01.789 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/49e2112b-0e2d-4381-b22e-38ca924f0134?*
+2026-06-02 02:56:01.805 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/49e2112b-0e2d-4381-b22e-38ca924f0134?*
+2026-06-02 02:56:02.000 +05:30 [INF] Received HTTP response headers after 181.1947ms - 200
+2026-06-02 02:56:02.021 +05:30 [INF] End processing HTTP request after 232.8004ms - 200
+2026-06-02 02:56:02.080 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/49e94653-ce8e-473e-9ac7-8da94b59064b?*
+2026-06-02 02:56:02.099 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/49e94653-ce8e-473e-9ac7-8da94b59064b?*
+2026-06-02 02:56:02.306 +05:30 [INF] Received HTTP response headers after 188.9682ms - 200
+2026-06-02 02:56:02.324 +05:30 [INF] End processing HTTP request after 244.6074ms - 200
+2026-06-02 02:56:02.341 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/4d6e78f8-1d50-4982-ad74-f739af798409?*
+2026-06-02 02:56:02.355 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/4d6e78f8-1d50-4982-ad74-f739af798409?*
+2026-06-02 02:56:02.485 +05:30 [INF] Received HTTP response headers after 114.5645ms - 200
+2026-06-02 02:56:02.513 +05:30 [INF] End processing HTTP request after 172.5004ms - 200
+2026-06-02 02:56:02.532 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/515206c9-45b1-47c8-990d-9eb4c90f1bc9?*
+2026-06-02 02:56:02.548 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/515206c9-45b1-47c8-990d-9eb4c90f1bc9?*
+2026-06-02 02:56:02.754 +05:30 [INF] Received HTTP response headers after 191.3052ms - 200
+2026-06-02 02:56:02.806 +05:30 [INF] End processing HTTP request after 274.0327ms - 200
+2026-06-02 02:56:02.823 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/604d3cea-cc9f-4cec-9767-7b0268a162a6?*
+2026-06-02 02:56:02.837 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/604d3cea-cc9f-4cec-9767-7b0268a162a6?*
+2026-06-02 02:56:03.037 +05:30 [INF] Received HTTP response headers after 186.1448ms - 200
+2026-06-02 02:56:03.059 +05:30 [INF] End processing HTTP request after 235.556ms - 200
+2026-06-02 02:56:03.082 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/68c03ecd-864b-4489-bde4-23da2d863cc9?*
+2026-06-02 02:56:03.101 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/68c03ecd-864b-4489-bde4-23da2d863cc9?*
+2026-06-02 02:56:03.242 +05:30 [INF] Received HTTP response headers after 122.3465ms - 200
+2026-06-02 02:56:03.262 +05:30 [INF] End processing HTTP request after 180.1103ms - 200
+2026-06-02 02:56:03.284 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/742fd072-6b6c-4230-8cf1-6972d7300ad5?*
+2026-06-02 02:56:03.297 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/742fd072-6b6c-4230-8cf1-6972d7300ad5?*
+2026-06-02 02:56:03.486 +05:30 [INF] Received HTTP response headers after 175.4929ms - 200
+2026-06-02 02:56:03.509 +05:30 [INF] End processing HTTP request after 225.4021ms - 200
+2026-06-02 02:56:03.530 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/76127915-56b3-483b-9d5b-c9f79c5637ff?*
+2026-06-02 02:56:03.548 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/76127915-56b3-483b-9d5b-c9f79c5637ff?*
+2026-06-02 02:56:03.751 +05:30 [INF] Received HTTP response headers after 188.4004ms - 200
+2026-06-02 02:56:03.775 +05:30 [INF] End processing HTTP request after 245.1334ms - 200
+2026-06-02 02:56:03.800 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/76521842-1af8-4caf-b658-cc8189f05f86?*
+2026-06-02 02:56:03.814 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/76521842-1af8-4caf-b658-cc8189f05f86?*
+2026-06-02 02:56:04.022 +05:30 [INF] Received HTTP response headers after 192.2515ms - 200
+2026-06-02 02:56:04.043 +05:30 [INF] End processing HTTP request after 243.3859ms - 200
+2026-06-02 02:56:04.066 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/83e59e8b-1583-43c5-aab9-2512ca2aec1d?*
+2026-06-02 02:56:04.082 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/83e59e8b-1583-43c5-aab9-2512ca2aec1d?*
+2026-06-02 02:56:04.301 +05:30 [INF] Received HTTP response headers after 196.0133ms - 200
+2026-06-02 02:56:04.349 +05:30 [INF] End processing HTTP request after 283.1329ms - 200
+2026-06-02 02:56:04.388 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/860a6e19-3808-4bd0-81d8-e4ccc8d7d780?*
+2026-06-02 02:56:04.416 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/860a6e19-3808-4bd0-81d8-e4ccc8d7d780?*
+2026-06-02 02:56:04.640 +05:30 [INF] Received HTTP response headers after 196.908ms - 200
+2026-06-02 02:56:04.658 +05:30 [INF] End processing HTTP request after 270.2207ms - 200
+2026-06-02 02:56:04.682 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/9c49407c-ffba-46e6-9478-4dc0adb10fb6?*
+2026-06-02 02:56:04.700 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/9c49407c-ffba-46e6-9478-4dc0adb10fb6?*
+2026-06-02 02:56:04.718 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/b162627b-5d59-45ab-a873-8699ed5c2ad0?*
+2026-06-02 02:56:04.736 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/b162627b-5d59-45ab-a873-8699ed5c2ad0?*
+2026-06-02 02:56:04.754 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/b26745cd-d8ac-4497-af66-b06ae74a239d?*
+2026-06-02 02:56:04.768 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/b26745cd-d8ac-4497-af66-b06ae74a239d?*
+2026-06-02 02:56:04.783 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/b78fcfb9-0135-49e3-8a30-3c89f23efd27?*
+2026-06-02 02:56:04.799 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/b78fcfb9-0135-49e3-8a30-3c89f23efd27?*
+2026-06-02 02:56:04.838 +05:30 [INF] Received HTTP response headers after 121.4003ms - 200
+2026-06-02 02:56:04.840 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/bd8e6495-916f-466e-b8ec-6c68b0ca2275?*
+2026-06-02 02:56:04.856 +05:30 [INF] End processing HTTP request after 173.9593ms - 200
+2026-06-02 02:56:04.870 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/bd8e6495-916f-466e-b8ec-6c68b0ca2275?*
+2026-06-02 02:56:04.901 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/be0929ed-32bf-489d-b7e7-78c410f0eb32?*
+2026-06-02 02:56:04.902 +05:30 [INF] Received HTTP response headers after 118.8459ms - 200
+2026-06-02 02:56:04.918 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/be0929ed-32bf-489d-b7e7-78c410f0eb32?*
+2026-06-02 02:56:04.922 +05:30 [INF] Received HTTP response headers after 168.4673ms - 200
+2026-06-02 02:56:04.938 +05:30 [INF] End processing HTTP request after 184.4349ms - 200
+2026-06-02 02:56:04.953 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/d8bc9ce0-805e-4f15-abc1-3770664967be?*
+2026-06-02 02:56:04.973 +05:30 [INF] End processing HTTP request after 255.0007ms - 200
+2026-06-02 02:56:05.005 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/d8bc9ce0-805e-4f15-abc1-3770664967be?*
+2026-06-02 02:56:05.034 +05:30 [INF] Received HTTP response headers after 194.9634ms - 200
+2026-06-02 02:56:05.051 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/e6effa40-f02d-43b5-b176-f05c2bd6f9d8?*
+2026-06-02 02:56:05.069 +05:30 [INF] End processing HTTP request after 285.4367ms - 200
+2026-06-02 02:56:05.083 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/e6effa40-f02d-43b5-b176-f05c2bd6f9d8?*
+2026-06-02 02:56:05.091 +05:30 [INF] Received HTTP response headers after 190.5973ms - 200
+2026-06-02 02:56:05.127 +05:30 [INF] Received HTTP response headers after 174.2173ms - 200
+2026-06-02 02:56:05.221 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/e9dd9e09-6245-4451-bbfc-9271397838bd?*
+2026-06-02 02:56:05.237 +05:30 [INF] Received HTTP response headers after 186.9164ms - 200
+2026-06-02 02:56:05.242 +05:30 [INF] End processing HTTP request after 402.2249ms - 200
+2026-06-02 02:56:05.270 +05:30 [INF] End processing HTTP request after 369.4849ms - 200
+2026-06-02 02:56:05.300 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/e9dd9e09-6245-4451-bbfc-9271397838bd?*
+2026-06-02 02:56:05.316 +05:30 [INF] End processing HTTP request after 362.7441ms - 200
+2026-06-02 02:56:05.364 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/ec3e1482-03bc-4b54-bbb2-0098dca6c3d2?*
+2026-06-02 02:56:05.397 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/ec3e1482-03bc-4b54-bbb2-0098dca6c3d2?*
+2026-06-02 02:56:05.401 +05:30 [INF] Received HTTP response headers after 181.1404ms - 200
+2026-06-02 02:56:05.413 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/ecf48238-8fe6-442d-ab11-447b07afd79e?*
+2026-06-02 02:56:05.428 +05:30 [INF] End processing HTTP request after 377.7042ms - 200
+2026-06-02 02:56:05.442 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/ecf48238-8fe6-442d-ab11-447b07afd79e?*
+2026-06-02 02:56:05.483 +05:30 [INF] Received HTTP response headers after 119.3775ms - 200
+2026-06-02 02:56:05.485 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/ed787c25-faab-4a75-ba66-d96ad1c32f33?*
+2026-06-02 02:56:05.501 +05:30 [INF] End processing HTTP request after 280.6991ms - 200
+2026-06-02 02:56:05.515 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/ed787c25-faab-4a75-ba66-d96ad1c32f33?*
+2026-06-02 02:56:05.546 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/f27d50af-8e5d-493b-8503-6cc072e85ee6?*
+2026-06-02 02:56:05.563 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/f27d50af-8e5d-493b-8503-6cc072e85ee6?*
+2026-06-02 02:56:05.577 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/f488bdea-975e-4c19-952b-ba57e2cd2b30?*
+2026-06-02 02:56:05.588 +05:30 [INF] Received HTTP response headers after 175.7336ms - 200
+2026-06-02 02:56:05.591 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/f488bdea-975e-4c19-952b-ba57e2cd2b30?*
+2026-06-02 02:56:05.611 +05:30 [INF] End processing HTTP request after 247.401ms - 200
+2026-06-02 02:56:05.625 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/fc6adfe3-0b18-45e2-9299-2b37b672df0e?*
+2026-06-02 02:56:05.658 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/fc6adfe3-0b18-45e2-9299-2b37b672df0e?*
+2026-06-02 02:56:05.664 +05:30 [INF] Received HTTP response headers after 179.3683ms - 200
+2026-06-02 02:56:05.693 +05:30 [INF] End processing HTTP request after 280.2707ms - 200
+2026-06-02 02:56:05.721 +05:30 [INF] Received HTTP response headers after 175.7833ms - 200
+2026-06-02 02:56:05.739 +05:30 [INF] Received HTTP response headers after 114.7382ms - 200
+2026-06-02 02:56:05.750 +05:30 [INF] End processing HTTP request after 265.6026ms - 200
+2026-06-02 02:56:05.761 +05:30 [INF] Received HTTP response headers after 186.2396ms - 200
+2026-06-02 02:56:05.769 +05:30 [INF] End processing HTTP request after 192.8561ms - 200
+2026-06-02 02:56:05.784 +05:30 [INF] Received HTTP response headers after 109.7513ms - 200
+2026-06-02 02:56:05.845 +05:30 [INF] End processing HTTP request after 299.275ms - 200
+2026-06-02 02:56:05.879 +05:30 [INF] End processing HTTP request after 254.6835ms - 200
+2026-06-02 02:56:05.912 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/9c49407c-ffba-46e6-9478-4dc0adb10fb6?*
+2026-06-02 02:56:05.927 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/9c49407c-ffba-46e6-9478-4dc0adb10fb6?*
+2026-06-02 02:56:06.062 +05:30 [INF] Received HTTP response headers after 110.7536ms - 200
+2026-06-02 02:56:06.083 +05:30 [INF] End processing HTTP request after 170.8058ms - 200
+2026-06-02 02:56:06.100 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/b162627b-5d59-45ab-a873-8699ed5c2ad0?*
+2026-06-02 02:56:06.117 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/b162627b-5d59-45ab-a873-8699ed5c2ad0?*
+2026-06-02 02:56:06.309 +05:30 [INF] Received HTTP response headers after 174.6117ms - 200
+2026-06-02 02:56:06.329 +05:30 [INF] End processing HTTP request after 228.5576ms - 200
+2026-06-02 02:56:06.346 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/b26745cd-d8ac-4497-af66-b06ae74a239d?*
+2026-06-02 02:56:06.371 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/b26745cd-d8ac-4497-af66-b06ae74a239d?*
+2026-06-02 02:56:06.496 +05:30 [INF] Received HTTP response headers after 109.315ms - 200
+2026-06-02 02:56:06.540 +05:30 [INF] End processing HTTP request after 193.5603ms - 200
+2026-06-02 02:56:06.557 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/b78fcfb9-0135-49e3-8a30-3c89f23efd27?*
+2026-06-02 02:56:06.582 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/b78fcfb9-0135-49e3-8a30-3c89f23efd27?*
+2026-06-02 02:56:06.764 +05:30 [INF] Received HTTP response headers after 160.1141ms - 200
+2026-06-02 02:56:06.818 +05:30 [INF] End processing HTTP request after 260.6847ms - 200
+2026-06-02 02:56:06.842 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/bd8e6495-916f-466e-b8ec-6c68b0ca2275?*
+2026-06-02 02:56:06.855 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/bd8e6495-916f-466e-b8ec-6c68b0ca2275?*
+2026-06-02 02:56:07.052 +05:30 [INF] Received HTTP response headers after 181.8503ms - 200
+2026-06-02 02:56:07.098 +05:30 [INF] End processing HTTP request after 255.2967ms - 200
+2026-06-02 02:56:07.114 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/be0929ed-32bf-489d-b7e7-78c410f0eb32?*
+2026-06-02 02:56:07.129 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/be0929ed-32bf-489d-b7e7-78c410f0eb32?*
+2026-06-02 02:56:07.315 +05:30 [INF] Received HTTP response headers after 173.1987ms - 200
+2026-06-02 02:56:07.333 +05:30 [INF] End processing HTTP request after 218.8244ms - 200
+2026-06-02 02:56:07.349 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/d8bc9ce0-805e-4f15-abc1-3770664967be?*
+2026-06-02 02:56:07.364 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/d8bc9ce0-805e-4f15-abc1-3770664967be?*
+2026-06-02 02:56:07.547 +05:30 [INF] Received HTTP response headers after 167.1467ms - 200
+2026-06-02 02:56:07.565 +05:30 [INF] End processing HTTP request after 215.299ms - 200
+2026-06-02 02:56:07.583 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/e6effa40-f02d-43b5-b176-f05c2bd6f9d8?*
+2026-06-02 02:56:07.601 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/e6effa40-f02d-43b5-b176-f05c2bd6f9d8?*
+2026-06-02 02:56:07.727 +05:30 [INF] Received HTTP response headers after 112.2042ms - 200
+2026-06-02 02:56:07.747 +05:30 [INF] End processing HTTP request after 163.7895ms - 200
+2026-06-02 02:56:07.764 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/e9dd9e09-6245-4451-bbfc-9271397838bd?*
+2026-06-02 02:56:07.779 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/e9dd9e09-6245-4451-bbfc-9271397838bd?*
+2026-06-02 02:56:07.908 +05:30 [INF] Received HTTP response headers after 112.9829ms - 200
+2026-06-02 02:56:07.931 +05:30 [INF] End processing HTTP request after 166.6597ms - 200
+2026-06-02 02:56:07.948 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/ec3e1482-03bc-4b54-bbb2-0098dca6c3d2?*
+2026-06-02 02:56:07.966 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/ec3e1482-03bc-4b54-bbb2-0098dca6c3d2?*
+2026-06-02 02:56:08.150 +05:30 [INF] Received HTTP response headers after 169.1203ms - 200
+2026-06-02 02:56:08.169 +05:30 [INF] End processing HTTP request after 221.1306ms - 200
+2026-06-02 02:56:08.189 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/ecf48238-8fe6-442d-ab11-447b07afd79e?*
+2026-06-02 02:56:08.206 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/ecf48238-8fe6-442d-ab11-447b07afd79e?*
+2026-06-02 02:56:08.392 +05:30 [INF] Received HTTP response headers after 171.7731ms - 200
+2026-06-02 02:56:08.413 +05:30 [INF] End processing HTTP request after 224.0364ms - 200
+2026-06-02 02:56:08.436 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/ed787c25-faab-4a75-ba66-d96ad1c32f33?*
+2026-06-02 02:56:08.458 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/ed787c25-faab-4a75-ba66-d96ad1c32f33?*
+2026-06-02 02:56:08.683 +05:30 [INF] Received HTTP response headers after 189.0375ms - 200
+2026-06-02 02:56:08.702 +05:30 [INF] End processing HTTP request after 266.6362ms - 200
+2026-06-02 02:56:08.719 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/f27d50af-8e5d-493b-8503-6cc072e85ee6?*
+2026-06-02 02:56:08.735 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/f27d50af-8e5d-493b-8503-6cc072e85ee6?*
+2026-06-02 02:56:08.934 +05:30 [INF] Received HTTP response headers after 184.9069ms - 200
+2026-06-02 02:56:08.954 +05:30 [INF] End processing HTTP request after 235.2613ms - 200
+2026-06-02 02:56:08.971 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/f488bdea-975e-4c19-952b-ba57e2cd2b30?*
+2026-06-02 02:56:08.995 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/f488bdea-975e-4c19-952b-ba57e2cd2b30?*
+2026-06-02 02:56:09.132 +05:30 [INF] Received HTTP response headers after 117.7649ms - 200
+2026-06-02 02:56:09.159 +05:30 [INF] End processing HTTP request after 187.8244ms - 200
+2026-06-02 02:56:09.190 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/applications/fc6adfe3-0b18-45e2-9299-2b37b672df0e?*
+2026-06-02 02:56:09.215 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/applications/fc6adfe3-0b18-45e2-9299-2b37b672df0e?*
+2026-06-02 02:56:09.364 +05:30 [INF] Received HTTP response headers after 113.2041ms - 200
+2026-06-02 02:56:09.395 +05:30 [INF] End processing HTTP request after 204.4687ms - 200
+2026-06-02 02:56:09.413 +05:30 [INF] [Governance] Fetching groups from Graph...
+2026-06-02 02:56:09.426 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/groups?*
+2026-06-02 02:56:09.452 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/groups?*
+2026-06-02 02:56:09.604 +05:30 [INF] Received HTTP response headers after 134.2633ms - 200
+2026-06-02 02:56:09.626 +05:30 [INF] End processing HTTP request after 199.5231ms - 200
+2026-06-02 02:56:09.712 +05:30 [INF] Start processing HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:56:09.728 +05:30 [INF] Sending HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:56:09.745 +05:30 [INF] Start processing HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:56:09.759 +05:30 [INF] Sending HTTP request POST https://graph.microsoft.com/v1.0/$batch
+2026-06-02 02:56:09.845 +05:30 [INF] Received HTTP response headers after 102.1536ms - 200
+2026-06-02 02:56:09.877 +05:30 [INF] End processing HTTP request after 165.3023ms - 200
+2026-06-02 02:56:09.880 +05:30 [INF] Received HTTP response headers after 105.2549ms - 200
+2026-06-02 02:56:09.922 +05:30 [INF] End processing HTTP request after 177.4232ms - 200
+2026-06-02 02:56:10.643 +05:30 [WRN] Failed to batch-fetch owners counts for groups
+System.Text.Json.JsonException: The JSON value could not be converted to System.String. Path: $.responses[0].body | LineNumber: 0 | BytePositionInLine: 119.
+ ---> System.InvalidOperationException: Cannot get the value of a token type 'StartObject' as a string.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedString(JsonTokenType tokenType)
+   at System.Text.Json.Utf8JsonReader.GetString()
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, Utf8JsonReader& reader, Exception ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.DeserializeAsync[TReadBufferState,TStream](TStream utf8Json, TReadBufferState bufferState, CancellationToken cancellationToken)
+   at System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsyncCore[T](HttpContent content, JsonSerializerOptions options, CancellationToken cancellationToken)
+   at SIGMA.Infrastructure.Graph.GraphClientService.BatchGetNavigationCountAsync(List`1 entityIds, String navigation, CancellationToken ct) in D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Infrastructure\Graph\GraphClientService.cs:line 613
+2026-06-02 02:56:10.996 +05:30 [WRN] Failed to batch-fetch members counts for groups
+System.Text.Json.JsonException: The JSON value could not be converted to System.String. Path: $.responses[0].body | LineNumber: 0 | BytePositionInLine: 119.
+ ---> System.InvalidOperationException: Cannot get the value of a token type 'StartObject' as a string.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedString(JsonTokenType tokenType)
+   at System.Text.Json.Utf8JsonReader.GetString()
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+   at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, Utf8JsonReader& reader, Exception ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.DeserializeAsync[TReadBufferState,TStream](TStream utf8Json, TReadBufferState bufferState, CancellationToken cancellationToken)
+   at System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsyncCore[T](HttpContent content, JsonSerializerOptions options, CancellationToken cancellationToken)
+   at SIGMA.Infrastructure.Graph.GraphClientService.BatchGetNavigationCountAsync(List`1 entityIds, String navigation, CancellationToken ct) in D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Infrastructure\Graph\GraphClientService.cs:line 613
+2026-06-02 02:56:11.072 +05:30 [INF] [Governance] Groups result: IsSuccess=true, Count=18
+2026-06-02 02:56:11.082 +05:30 [INF] [Governance] Fetching users from Graph...
+2026-06-02 02:56:11.094 +05:30 [INF] Start processing HTTP request GET https://graph.microsoft.com/v1.0/users?*
+2026-06-02 02:56:11.110 +05:30 [INF] Sending HTTP request GET https://graph.microsoft.com/v1.0/users?*
+2026-06-02 02:56:11.301 +05:30 [INF] Received HTTP response headers after 177.101ms - 200
+2026-06-02 02:56:11.329 +05:30 [INF] End processing HTTP request after 235.6968ms - 200
+2026-06-02 02:56:11.362 +05:30 [INF] [Governance] Users result: IsSuccess=true, Count=23
+2026-06-02 02:56:11.382 +05:30 [INF] [Governance] Final findings count: 90 (Critical=65, Warning=25, Info=0)
+2026-06-02 02:56:11.538 +05:30 [WRN] Slow request: GET /api/v1/governance/findings responded 200 in 17486ms
+2026-06-02 02:56:46.599 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:56:46.637 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:56:46.649 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:56:46.660 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:56:46.671 +05:30 [INF] [Governance] Returning cached response with 90 findings
+2026-06-02 02:56:46.682 +05:30 [INF] Request: GET /api/v1/governance/findings responded 200 in 83ms
+2026-06-02 02:56:48.322 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:56:48.330 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:56:48.342 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:56:48.352 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:56:48.394 +05:30 [INF] Request: GET /hubs/sigma responded 401 in 113ms
+2026-06-02 02:56:54.406 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:56:54.415 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:56:54.443 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:56:54.452 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:56:54.462 +05:30 [INF] Request: GET /hubs/sigma responded 401 in 56ms
+2026-06-02 02:57:03.742 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:57:03.781 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:57:03.813 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:57:03.844 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:57:03.892 +05:30 [INF] [Governance] Returning cached response with 90 findings
+2026-06-02 02:57:04.027 +05:30 [INF] Request: GET /api/v1/governance/findings responded 200 in 284ms
+2026-06-02 02:57:04.643 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:57:04.667 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:57:04.677 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:57:04.687 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:57:04.699 +05:30 [INF] Request: GET /hubs/sigma responded 401 in 57ms
+2026-06-02 02:57:11.713 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:57:11.726 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:57:11.735 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:57:11.747 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:57:11.762 +05:30 [INF] Request: GET /hubs/sigma responded 401 in 48ms
+2026-06-02 02:57:19.272 +05:30 [INF] IDX10242: Security token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]' has a valid signature.
+2026-06-02 02:57:19.385 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:57:19.439 +05:30 [INF] IDX10234: Audience Validated.Audience: 'api://f0ee212a-b836-4f5c-aafe-bee4b0ebfcfb'
+2026-06-02 02:57:19.495 +05:30 [INF] IDX10245: Creating claims identity from the validated token: '[PII of type 'Microsoft.IdentityModel.JsonWebTokens.JsonWebToken' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]'.
+2026-06-02 02:57:19.562 +05:30 [INF] Request: GET /api/v1/entra/tenant responded 200 in 293ms
+2026-06-02 02:57:22.243 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:57:22.254 +05:30 [INF] IDX10243: Reading issuer signing keys from validation parameters.
+2026-06-02 02:57:22.265 +05:30 [INF] IDX10239: Lifetime of the token is valid.
+2026-06-02 02:57:22.276 +05:30 [ERR] IDX10204: Unable to validate issuer. validationParameters.ValidIssuer is null or whitespace AND validationParameters.ValidIssuers is null or empty.
+2026-06-02 02:57:22.289 +05:30 [INF] Request: GET /hubs/sigma responded 401 in 46ms
+2026-06-02 02:57:45.546 +05:30 [INF] Request: GET /hubs/sigma responded 401 in 0ms
