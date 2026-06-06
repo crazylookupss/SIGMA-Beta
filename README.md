@@ -1,4 +1,4 @@
-# SIGMA API
+# <img src="docs/images/logo-icon.png" alt="SIGMA Logo" width="36" align="center" /> SIGMA API
 
 > **S**ecure **I**dentity **G**ateway & **M**anagement **A**PI
 

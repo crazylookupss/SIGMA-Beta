@@ -8,7 +8,7 @@ namespace SIGMA.Api.Endpoints.Entra;
 
 internal static class ApplicationEndpoints
 {
-    public static RouteGroupBuilder MapApplicationEndpoints(this RouteGroupBuilder group)
+    public static RouteGroupBuilder MapApplicationEndpoints(this RouteGroupBuilder group, int subEndpointCacheSeconds = 0)
     {
         // NOTE: statistics route must be registered BEFORE {id} to avoid route conflict
         group.MapGet("/applications/statistics", async (
@@ -83,7 +83,8 @@ internal static class ApplicationEndpoints
         .WithName("GetApplicationServicePrincipals")
         .WithTags("Entra Applications")
         .WithSummary("Get linked service principals for an App Registration")
-        .WithDescription("Returns all enterprise applications (service principals) linked to this app registration.");
+        .WithDescription("Returns all enterprise applications (service principals) linked to this app registration.")
+        .ConfigureOutputCache(subEndpointCacheSeconds);
 
         group.MapGet("/applications/{id}/credentials", async (
             string id,
@@ -96,7 +97,8 @@ internal static class ApplicationEndpoints
         .WithName("GetApplicationCredentials")
         .WithTags("Entra Applications")
         .WithSummary("Get certificate and secret health for an App Registration")
-        .WithDescription("Returns key credentials and password credentials with expiry status and risk assessment.");
+        .WithDescription("Returns key credentials and password credentials with expiry status and risk assessment.")
+        .ConfigureOutputCache(subEndpointCacheSeconds);
 
         group.MapGet("/applications/{id}/permissions", async (
             string id,
@@ -115,7 +117,8 @@ internal static class ApplicationEndpoints
         .WithName("GetApplicationPermissions")
         .WithTags("Entra Applications")
         .WithSummary("Get API permissions for an App Registration")
-        .WithDescription("Returns all required resource access (delegated and application permissions) for this app registration.");
+        .WithDescription("Returns all required resource access (delegated and application permissions) for this app registration.")
+        .ConfigureOutputCache(subEndpointCacheSeconds);
 
         group.MapGet("/applications/{id}/signins", async (
             string id,
@@ -132,7 +135,8 @@ internal static class ApplicationEndpoints
         .WithName("GetApplicationSignIns")
         .WithTags("Entra Applications")
         .WithSummary("Get recent sign-in activity for an App Registration")
-        .WithDescription("Returns recent sign-in events for this application (requires P1/P2 license).");
+        .WithDescription("Returns recent sign-in events for this application (requires P1/P2 license).")
+        .ConfigureOutputCache(subEndpointCacheSeconds);
 
         group.MapGet("/applications/{id}/audit-logs", async (
             string id,
@@ -149,7 +153,8 @@ internal static class ApplicationEndpoints
         .WithName("GetApplicationAuditLogs")
         .WithTags("Entra Applications")
         .WithSummary("Get audit log entries for an App Registration")
-        .WithDescription("Returns recent audit/sign-in log entries for this application.");
+        .WithDescription("Returns recent audit/sign-in log entries for this application.")
+        .ConfigureOutputCache(subEndpointCacheSeconds);
 
         group.MapGet("/applications/{id}/manifest", async (
             string id,
@@ -164,7 +169,8 @@ internal static class ApplicationEndpoints
         .WithName("GetApplicationManifest")
         .WithTags("Entra Applications")
         .WithSummary("Get the manifest of an App Registration")
-        .WithDescription("Returns the raw JSON manifest for this application.");
+        .WithDescription("Returns the raw JSON manifest for this application.")
+        .ConfigureOutputCache(subEndpointCacheSeconds);
 
         group.MapGet("/applications/{id}/service-principal-ref", async (
             string id,
@@ -184,5 +190,12 @@ internal static class ApplicationEndpoints
         .WithDescription("Returns the first matching enterprise application (service principal) linked to this app registration.");
 
         return group;
+    }
+
+    private static RouteHandlerBuilder ConfigureOutputCache(this RouteHandlerBuilder builder, int cacheSeconds)
+    {
+        if (cacheSeconds > 0)
+            builder.CacheOutput(c => c.Expire(TimeSpan.FromSeconds(cacheSeconds)));
+        return builder;
     }
 }
