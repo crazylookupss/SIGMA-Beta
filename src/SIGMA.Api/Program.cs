@@ -12,6 +12,7 @@ using SIGMA.Api.Endpoints;
 using SIGMA.Api.Endpoints.Entra;
 using SIGMA.Api.Hubs;
 using SIGMA.Api.Middleware;
+using SIGMA.Api.Services;
 using SIGMA.Application;
 using SIGMA.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
@@ -168,6 +169,12 @@ builder.Services.AddSingleton<SIGMA.Application.Abstractions.IEventBus>(sp => sp
 // ── Health checks ──────────────────────────────────────────────────────────
 builder.Services.AddHealthChecks();
 
+// ── Background governance scan (feature-flagged) ───────────────────────────
+if (builder.Configuration.GetValue("Performance:BackgroundGovernanceScan", false))
+{
+    builder.Services.AddHostedService<GovernanceBackgroundService>();
+}
+
 // ── Output caching for read-heavy endpoints ─────────────────────────────────
 builder.Services.AddOutputCache(options =>
 {
@@ -286,11 +293,15 @@ var entra = api.MapGroup("/entra").RequireAuthorization("DelegatedUserPolicy");
 entra.MapTenantEndpoints();
 entra.MapUserEndpoints();
 entra.MapGroupEndpoints();
-entra.MapServicePrincipalEndpoints();
-entra.MapApplicationEndpoints();
 
+var dashboardCache = builder.Configuration.GetValue("Performance:DashboardOutputCacheSeconds", 0);
+var appSubCache = builder.Configuration.GetValue("Performance:ApplicationSubEndpointCacheSeconds", 0);
+entra.MapServicePrincipalEndpoints(dashboardCache);
+entra.MapApplicationEndpoints(appSubCache);
+
+var govCache = builder.Configuration.GetValue("Performance:GovernanceOutputCacheSeconds", 0);
 var governance = api.MapGroup("").RequireAuthorization("DelegatedUserPolicy");
-governance.MapGovernanceEndpoints();
+governance.MapGovernanceEndpoints(govCache);
 
 app.MapHub<SigmaHub>("/hubs/sigma")
     .RequireAuthorization("DelegatedUserPolicy");

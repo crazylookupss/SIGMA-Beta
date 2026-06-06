@@ -12,7 +12,7 @@ namespace SIGMA.Api.Endpoints.Entra;
 
 internal static class ServicePrincipalEndpoints
 {
-    public static RouteGroupBuilder MapServicePrincipalEndpoints(this RouteGroupBuilder group)
+    public static RouteGroupBuilder MapServicePrincipalEndpoints(this RouteGroupBuilder group, int dashboardCacheSeconds = 0)
     {
         group.MapGet("/service-principals/dashboard", async (
             IQueryDispatcher dispatcher,
@@ -24,7 +24,8 @@ internal static class ServicePrincipalEndpoints
         .WithName("GetServicePrincipalDashboard")
         .WithTags("Entra Service Principals")
         .WithSummary("Get Enterprise Applications dashboard analytics")
-        .WithDescription("Returns aggregated counts, donut status segments, and 30 days sign-ins line series.");
+        .WithDescription("Returns aggregated counts, donut status segments, and 30 days sign-ins line series.")
+        .ConfigureOutputCache(dashboardCacheSeconds);
 
         group.MapGet("/service-principals", async (
 
@@ -158,8 +159,16 @@ internal static class ServicePrincipalEndpoints
         .WithName("GetServicePrincipalSignIns")
         .WithTags("Entra Service Principals")
         .WithSummary("Get sign-in activity for a service principal")
-        .WithDescription("Returns recent sign-in activity for this enterprise application (requires P1/P2 license).");
+        .WithDescription("Returns recent sign-in activity for this enterprise application (requires P1/P2 license).")
+        .WithMetadata(new CachedAttribute(300));
 
         return group;
+    }
+
+    private static RouteHandlerBuilder ConfigureOutputCache(this RouteHandlerBuilder builder, int cacheSeconds)
+    {
+        if (cacheSeconds > 0)
+            builder.CacheOutput(c => c.Expire(TimeSpan.FromSeconds(cacheSeconds)));
+        return builder;
     }
 }

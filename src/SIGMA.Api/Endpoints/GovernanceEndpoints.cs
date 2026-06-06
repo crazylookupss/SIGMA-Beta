@@ -5,7 +5,7 @@ namespace SIGMA.Api.Endpoints;
 
 internal static class GovernanceEndpoints
 {
-    public static RouteGroupBuilder MapGovernanceEndpoints(this RouteGroupBuilder group)
+    public static RouteGroupBuilder MapGovernanceEndpoints(this RouteGroupBuilder group, int cacheSeconds = 0)
     {
         group.MapGet("/governance/findings", async (
             bool? force,
@@ -18,7 +18,8 @@ internal static class GovernanceEndpoints
         .WithName("GetGovernanceFindings")
         .WithTags("Governance")
         .WithSummary("Get all governance findings")
-        .WithDescription("Returns aggregated governance findings across applications, groups, and users.");
+        .WithDescription("Returns aggregated governance findings across applications, groups, and users.")
+        .ConfigureOutputCache(cacheSeconds);
 
         group.MapGet("/governance/findings/summary", async (
             bool? force,
@@ -31,7 +32,8 @@ internal static class GovernanceEndpoints
         .WithName("GetGovernanceSummary")
         .WithTags("Governance")
         .WithSummary("Get governance findings summary")
-        .WithDescription("Returns summary counts of governance findings by severity.");
+        .WithDescription("Returns summary counts of governance findings by severity.")
+        .ConfigureOutputCache(cacheSeconds);
 
         group.MapGet("/governance/findings/category/{category}", async (
             string category,
@@ -47,7 +49,8 @@ internal static class GovernanceEndpoints
         .WithName("GetGovernanceFindingsByCategory")
         .WithTags("Governance")
         .WithSummary("Get findings by category")
-        .WithDescription("Returns governance findings filtered by category.");
+        .WithDescription("Returns governance findings filtered by category.")
+        .ConfigureOutputCache(cacheSeconds);
 
         group.MapGet("/governance/findings/severity/{severity}", async (
             string severity,
@@ -63,8 +66,16 @@ internal static class GovernanceEndpoints
         .WithName("GetGovernanceFindingsBySeverity")
         .WithTags("Governance")
         .WithSummary("Get findings by severity")
-        .WithDescription("Returns governance findings filtered by severity.");
+        .WithDescription("Returns governance findings filtered by severity.")
+        .ConfigureOutputCache(cacheSeconds);
 
         return group;
+    }
+
+    private static RouteHandlerBuilder ConfigureOutputCache(this RouteHandlerBuilder builder, int cacheSeconds)
+    {
+        if (cacheSeconds > 0)
+            builder.CacheOutput(c => c.Expire(TimeSpan.FromSeconds(cacheSeconds)));
+        return builder;
     }
 }
