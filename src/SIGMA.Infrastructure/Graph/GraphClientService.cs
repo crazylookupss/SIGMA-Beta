@@ -71,8 +71,20 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string? select, string? filter, int? top, int? skip, bool? count,
         CancellationToken cancellationToken = default)
     {
-        return await GetPagedAsync<GraphUser, EntraUser>(
+        var cacheKey = $"user:list:{select ?? ""}:{filter ?? ""}:{top}:{skip}:{count}";
+        var cached = await _cache.GetAsync<PagedResponse<EntraUser>>(cacheKey, cancellationToken);
+        if (cached is not null)
+            return Result.Success(cached);
+
+        var result = await GetPagedAsync<GraphUser, EntraUser>(
             "users", MapUser, select, filter, top, skip, count, cancellationToken);
+
+        if (result.IsSuccess && result.Value is not null)
+        {
+            await _cache.SetAsync(cacheKey, result.Value, TimeSpan.FromSeconds(60), cancellationToken);
+        }
+
+        return result;
     }
 
     public async Task<Result<EntraUser>> GetUserByIdAsync(
@@ -117,6 +129,11 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string? select, string? filter, int? top, int? skip, bool? count,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"group:list:{select ?? ""}:{filter ?? ""}:{top}:{skip}:{count}";
+        var cached = await _cache.GetAsync<PagedResponse<EntraGroup>>(cacheKey, cancellationToken);
+        if (cached is not null)
+            return Result.Success(cached);
+
         var result = await GetPagedAsync<GraphGroup, EntraGroup>(
             "groups", MapGroup, select, filter, top, skip, count, cancellationToken);
 
@@ -139,12 +156,16 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             OwnersCount = ownerCounts.GetValueOrDefault(g.Id, 0)
         }).ToList();
 
-        return Result.Success(new PagedResponse<EntraGroup>
+        var response = new PagedResponse<EntraGroup>
         {
             Data = enriched,
             NextLink = result.Value.NextLink,
             Count = result.Value.Count
-        });
+        };
+
+        await _cache.SetAsync(cacheKey, response, TimeSpan.FromSeconds(60), cancellationToken);
+
+        return Result.Success(response);
     }
 
     public async Task<Result<EntraGroup>> GetGroupByIdAsync(
@@ -646,6 +667,11 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
         string? select, string? filter, int? top, int? skip, bool? count,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"app:list:{select ?? ""}:{filter ?? ""}:{top}:{skip}:{count}";
+        var cached = await _cache.GetAsync<PagedResponse<EntraApplication>>(cacheKey, cancellationToken);
+        if (cached is not null)
+            return Result.Success(cached);
+
         var result = await GetPagedAsync<GraphApplicationDto, EntraApplication>(
             "applications", MapApplication, select, filter, top, skip, count, cancellationToken);
 
@@ -661,12 +687,16 @@ internal sealed class GraphClientService : IGraphClientService, IDisposable
             OwnersCount = ownerCounts.GetValueOrDefault(a.Id, 0)
         }).ToList();
 
-        return Result.Success(new PagedResponse<EntraApplication>
+        var response = new PagedResponse<EntraApplication>
         {
             Data = enriched,
             NextLink = result.Value.NextLink,
             Count = result.Value.Count
-        });
+        };
+
+        await _cache.SetAsync(cacheKey, response, TimeSpan.FromSeconds(60), cancellationToken);
+
+        return Result.Success(response);
     }
 
     public async Task<Result<EntraApplication>> GetApplicationByIdAsync(
