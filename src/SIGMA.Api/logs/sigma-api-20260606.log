@@ -3,3 +3,13 @@
 2026-06-06 19:28:33.633 +05:30 [INF] Application started. Press Ctrl+C to shut down.
 2026-06-06 19:28:33.638 +05:30 [INF] Hosting environment: Development
 2026-06-06 19:28:33.643 +05:30 [INF] Content root path: D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Api
+2026-06-06 20:01:43.743 +05:30 [WRN] Overriding address(es) 'http://0.0.0.0:5107'. Binding to endpoints defined via IConfiguration and/or UseKestrel() instead.
+2026-06-06 20:01:43.881 +05:30 [INF] Now listening on: http://0.0.0.0:5107
+2026-06-06 20:01:44.009 +05:30 [INF] Application started. Press Ctrl+C to shut down.
+2026-06-06 20:01:44.015 +05:30 [INF] Hosting environment: Development
+2026-06-06 20:01:44.019 +05:30 [INF] Content root path: D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Api
+2026-06-06 21:10:11.914 +05:30 [WRN] Overriding address(es) 'http://0.0.0.0:5107'. Binding to endpoints defined via IConfiguration and/or UseKestrel() instead.
+2026-06-06 21:10:12.146 +05:30 [INF] Now listening on: http://0.0.0.0:5107
+2026-06-06 21:10:12.289 +05:30 [INF] Application started. Press Ctrl+C to shut down.
+2026-06-06 21:10:12.294 +05:30 [INF] Hosting environment: Development
+2026-06-06 21:10:12.300 +05:30 [INF] Content root path: D:\SIGMA Project\SIGMA-Beta\SIGMA\src\SIGMA.Api
