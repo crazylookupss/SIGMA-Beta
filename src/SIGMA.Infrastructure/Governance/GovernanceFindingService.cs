@@ -45,7 +45,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         // ── 1. APPLICATIONS ──────────────────────────────────────────────────
         _logger.LogInformation("[Governance] Fetching applications from Graph...");
         var appsResult = await _graphClient.GetApplicationsAsync(
-            null, null, MaxEntitiesPerScan, null, null, ct);
+            null, null, MaxEntitiesPerScan, null, true, ct);
 
         _logger.LogInformation("[Governance] Applications result: IsSuccess={IsSuccess}, Error={Error}",
             appsResult.IsSuccess, appsResult.Error?.Description);
@@ -165,7 +165,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
 
         // ── 2. GROUPS ─────────────────────────────────────────────────────────
         _logger.LogInformation("[Governance] Fetching groups from Graph...");
-        var groupsResult = await _graphClient.GetGroupsAsync(null, null, MaxEntitiesPerScan, null, null, ct);
+        var groupsResult = await _graphClient.GetGroupsAsync(null, null, MaxEntitiesPerScan, null, true, ct);
 
         _logger.LogInformation("[Governance] Groups result: IsSuccess={IsSuccess}, Count={Count}",
             groupsResult.IsSuccess, groupsResult.Value?.Data?.Count ?? -1);
@@ -192,6 +192,24 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
                         "Group", group.Id, group.DisplayName ?? "Unknown",
                         $"/groups/{group.Id}"));
                 }
+
+                // Empty / stale groups: created >90 days ago with zero members
+                var hasNoMembers = (group.TotalDirectMembers ?? group.MemberCount ?? 0) == 0;
+                var isStale = group.CreatedDateTime.HasValue
+                    && (now - group.CreatedDateTime.Value).TotalDays > 90;
+
+                if (hasNoMembers && isStale)
+                {
+                    var ageDays = (int)(now - group.CreatedDateTime!.Value).TotalDays;
+                    _logger.LogInformation("[Governance] Found stale empty group: {Name} (created {AgeDays} days ago)", group.DisplayName, ageDays);
+                    findings.Add(CreateFinding(
+                        $"group-empty-stale-{group.Id}",
+                        FindingCategory.Compliance, FindingSeverity.Info,
+                        "Group is empty and stale",
+                        $"Group '{group.DisplayName}' was created {ageDays} days ago and has no members",
+                        "Group", group.Id, group.DisplayName ?? "Unknown",
+                        $"/groups/{group.Id}"));
+                }
             }
         }
         else if (!groupsResult.IsSuccess)
@@ -207,7 +225,7 @@ internal sealed class GovernanceFindingService : IGovernanceFindingService
         _logger.LogInformation("[Governance] Fetching users from Graph...");
         var usersResult = await _graphClient.GetUsersAsync(
             "id,displayName,accountEnabled,lastPasswordChangeDateTime,mobilePhone,userType",
-            null, MaxEntitiesPerScan, null, null, ct);
+            null, MaxEntitiesPerScan, null, true, ct);
 
         _logger.LogInformation("[Governance] Users result: IsSuccess={IsSuccess}, Count={Count}",
             usersResult.IsSuccess, usersResult.Value?.Data?.Count ?? -1);
